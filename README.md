@@ -18,11 +18,7 @@ There's currently no app store listing or standalone APK — the app runs by bui
    ```bash
    git clone https://github.com/jmmendez-ops/feline-detector-public.git
    ```
-3. Open the project folder in VS Code.
-4. Connect your Android or iOS phone via USB and enable **USB debugging** (Android: Developer Options → USB Debugging).
-5. In VS Code, select your connected phone as the run target (bottom-right device selector, or `flutter devices` in the terminal).
-6. Press **Run** (or `F5`) to build and install the app directly onto your phone.
-7. Grant camera/gallery permissions when prompted on first launch.
+
 
 ## Installation (Developers)
 
