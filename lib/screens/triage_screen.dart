@@ -7,11 +7,14 @@ import 'package:image_picker/image_picker.dart';
 
 import '../config/detection_config.dart';
 import '../core/app_state.dart';
+import '../core/sound_utils.dart';
 import '../models/triage_models.dart';
 import '../services/history_storage.dart';
+import '../services/symptom_intake_service.dart';
 import '../services/triage_engine.dart';
 import 'history_screen.dart';
 import 'result_screen.dart';
+import 'triage_submission_validator.dart';
 
 class TriageScreen extends StatefulWidget {
   const TriageScreen({super.key});
@@ -34,7 +37,7 @@ class _TriageScreenState extends State<TriageScreen> {
   bool _lostAppetite = false;
 
   List<TriageResult> _history = [];
-  bool _isHistoryLoaded = false;
+  int _selectedIndex = 0;
 
   @override
   void initState() {
@@ -46,10 +49,15 @@ class _TriageScreenState extends State<TriageScreen> {
   Future<void> _loadHistory() async {
     final saved = await HistoryStorage.load();
     if (!mounted) return;
-    setState(() {
-      _history = saved;
-      _isHistoryLoaded = true;
-    });
+    if (mounted) {
+      setState(() {
+        _history = saved;
+      });
+    }
+    // Debug: log loaded history count so devs can verify persistence
+    // This will appear in device logs when running in debug mode.
+    // Keep as a plain print to avoid introducing UI side-effects.
+    print('TriageScreen: loaded history with ${saved.length} entries');
   }
 
   Future<void> _persistHistory() async {
@@ -58,25 +66,13 @@ class _TriageScreenState extends State<TriageScreen> {
 
   Future<void> _deleteHistoryEntry(TriageResult entry) async {
     setState(() => _history.remove(entry));
+    await HistoryStorage.deleteEntry(entry);
     await _persistHistory();
   }
 
   Future<void> _clearHistory() async {
     setState(() => _history = []);
     await HistoryStorage.clear();
-  }
-
-  void _openHistory() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => HistoryScreen(
-          history: _history,
-          onDelete: _deleteHistoryEntry,
-          onClearAll: _clearHistory,
-        ),
-      ),
-    );
   }
 
   Future<void> _loadModel() async {
@@ -112,61 +108,110 @@ class _TriageScreenState extends State<TriageScreen> {
       [_isVomiting, _isLethargic, _lostAppetite].where((s) => s).length;
 
   Future<void> _runInference() async {
-    if (_image == null || !_isModelLoaded) return;
+    final validation = validateTriageSubmission(
+      hasImage: _image != null,
+      hasSymptoms: _symptomCount > 0,
+    );
+
+    if (!validation.allowed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(validation.message ?? 'Please upload a photo first.'),
+        ),
+      );
+      return;
+    }
+
     setState(() => _isScanning = true);
 
     try {
-      final Uint8List bytes = await _image!.readAsBytes();
-      final imageInfo = await decodeImageFromList(bytes);
-
-      final List<dynamic> rawResults = await _vision!.yoloOnImage(
-        bytesList: bytes,
-        imageHeight: imageInfo.height,
-        imageWidth: imageInfo.width,
-        iouThreshold: DetectionConfig.iouThreshold,
-        confThreshold: DetectionConfig.minDetectionConfidence,
+      final intake = await SymptomIntakeService.extractChecklistFromText(
+        userText: _buildIntakePrompt(),
+        selectedSymptoms: _selectedSymptoms,
+        turnCount: 1,
       );
 
-      final Map<String, List<double>> confidencesPerDisease = {
-        for (final disease in DetectionConfig.knownDiseases) disease: [],
-      };
-
-      for (final res in rawResults) {
-        if (res is! Map) continue;
-        final String tag = (res['tag'] ?? '').toString();
-        if (!DetectionConfig.knownDiseases.contains(tag)) continue;
-
-        final conf = extractConfidence(res);
-        if (conf == null || conf < DetectionConfig.minDetectionConfidence) {
-          continue;
-        }
-        confidencesPerDisease[tag]!.add(conf);
-      }
-
-      final evidenceList = <DiseaseEvidence>[];
-      confidencesPerDisease.forEach((disease, confs) {
-        if (confs.isEmpty) return;
-        final best = confs.reduce((a, b) => a > b ? a : b);
-        final avg = confs.reduce((a, b) => a + b) / confs.length;
-        evidenceList.add(
-          DiseaseEvidence(
-            disease: disease,
-            bestConfidence: best,
-            avgConfidence: avg,
-            detectionCount: confs.length,
+      if (intake.redFlag) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Urgent vet care is recommended for this situation.'),
           ),
         );
-      });
+        setState(() => _isScanning = false);
+        return;
+      }
+
+      final List<DiseaseEvidence> evidenceList = [];
+      if (_image != null && _isModelLoaded) {
+        final Uint8List bytes = await _image!.readAsBytes();
+        final imageInfo = await decodeImageFromList(bytes);
+
+        final List<dynamic> rawResults = await _vision!.yoloOnImage(
+          bytesList: bytes,
+          imageHeight: imageInfo.height,
+          imageWidth: imageInfo.width,
+          iouThreshold: DetectionConfig.iouThreshold,
+          confThreshold: DetectionConfig.minDetectionConfidence,
+        );
+
+        final Map<String, List<double>> confidencesPerDisease = {
+          for (final disease in DetectionConfig.knownDiseases) disease: [],
+        };
+
+        for (final res in rawResults) {
+          if (res is! Map) continue;
+          final String tag = (res['tag'] ?? '').toString();
+          if (!DetectionConfig.knownDiseases.contains(tag)) continue;
+
+          final conf = extractConfidence(res);
+          if (conf == null || conf < DetectionConfig.minDetectionConfidence) {
+            continue;
+          }
+          confidencesPerDisease[tag]!.add(conf);
+        }
+
+        confidencesPerDisease.forEach((disease, confs) {
+          if (confs.isEmpty) return;
+          final best = confs.reduce((a, b) => a > b ? a : b);
+          final avg = confs.reduce((a, b) => a + b) / confs.length;
+          evidenceList.add(
+            DiseaseEvidence(
+              disease: disease,
+              bestConfidence: best,
+              avgConfidence: avg,
+              detectionCount: confs.length,
+            ),
+          );
+        });
+      }
+
+      final checklistFlags = SymptomIntakeService.checklistFlagsFromResult(
+        intake,
+      );
+      final symptomCount = [
+        checklistFlags['vomiting'] == true,
+        checklistFlags['lethargy'] == true,
+        checklistFlags['loss_of_appetite'] == true,
+      ].where((value) => value).length;
 
       final result = runExpertSystem(
         evidenceList: evidenceList,
-        symptomCount: _symptomCount,
+        symptomCount: symptomCount,
         image: _image,
+      );
+
+      final resultWithIntake = result.copyWith(
+        reasoning:
+            result.reasoning +
+            (intake.partialData
+                ? '\n\nBased on limited information — consult a vet if symptoms persist or worsen.'
+                : ''),
       );
 
       setState(() {
         _isScanning = false;
-        _history.insert(0, result);
+        _history.insert(0, resultWithIntake);
       });
       await _persistHistory();
 
@@ -175,7 +220,7 @@ class _TriageScreenState extends State<TriageScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => ResultScreen(
-            result: result,
+            result: resultWithIntake,
             history: _history,
             onDeleteHistoryEntry: _deleteHistoryEntry,
             onClearHistory: _clearHistory,
@@ -189,6 +234,29 @@ class _TriageScreenState extends State<TriageScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text('Error during scan: $e')));
     }
+  }
+
+  Set<String> get _selectedSymptoms {
+    final selected = <String>{};
+    if (_isVomiting) selected.add('vomiting');
+    if (_isLethargic) selected.add('lethargy');
+    if (_lostAppetite) selected.add('loss_of_appetite');
+    return selected;
+  }
+
+  String _buildSymptomSummary() {
+    final parts = <String>[];
+    if (_isVomiting) parts.add('vomiting');
+    if (_isLethargic) parts.add('lethargy');
+    if (_lostAppetite) parts.add('loss_of_appetite');
+    return parts.isEmpty ? 'No symptoms reported.' : parts.join(', ');
+  }
+
+  String _buildIntakePrompt() {
+    final selectedSummary = _buildSymptomSummary();
+    return selectedSummary == 'No symptoms reported.'
+        ? ''
+        : 'Selected symptom checklist: $selectedSummary';
   }
 
   String _getSymptomInsight() {
@@ -217,20 +285,20 @@ class _TriageScreenState extends State<TriageScreen> {
       decoration: BoxDecoration(
         color: value
             ? (isDark
-                  ? Colors.teal.shade900.withValues(alpha: 0.5)
-                  : Colors.teal.shade50)
+                  ? Colors.deepPurple.shade900.withValues(alpha: 0.5)
+                  : Colors.deepPurple.shade50)
             : Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(15),
         border: Border.all(
           color: value
-              ? Colors.teal
+              ? Colors.deepPurple
               : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
           width: value ? 2.5 : 1.0,
         ),
         boxShadow: value
             ? [
                 BoxShadow(
-                  color: Colors.teal.withValues(alpha: 0.15),
+                  color: Colors.deepPurple.withValues(alpha: 0.15),
                   blurRadius: 8,
                   spreadRadius: 1,
                 ),
@@ -251,7 +319,9 @@ class _TriageScreenState extends State<TriageScreen> {
             style: TextStyle(
               fontWeight: value ? FontWeight.bold : FontWeight.w500,
               color: value
-                  ? (isDark ? Colors.tealAccent : Colors.teal.shade900)
+                  ? (isDark
+                        ? Colors.deepPurpleAccent
+                        : Colors.deepPurple.shade900)
                   : (isDark ? Colors.white : Colors.black87),
               fontSize: 16,
             ),
@@ -265,7 +335,7 @@ class _TriageScreenState extends State<TriageScreen> {
           ),
           value: value,
           onChanged: onChanged,
-          activeColor: Colors.teal,
+          activeColor: Colors.deepPurple,
           checkColor: Colors.white,
           controlAffinity: ListTileControlAffinity.leading,
           contentPadding: const EdgeInsets.symmetric(
@@ -280,13 +350,313 @@ class _TriageScreenState extends State<TriageScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildDashboard() {
     final bool hasSymptoms = _symptomCount > 0;
-
     return ValueListenableBuilder<bool>(
       valueListenable: isDarkModeNotifier,
       builder: (context, isDark, child) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_loadError != null)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.red.shade300),
+                  ),
+                  child: Text(
+                    '⚠️ $_loadError',
+                    style: TextStyle(color: Colors.red.shade900, fontSize: 13),
+                  ),
+                )
+              else if (!_isModelLoaded)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.amber.shade300),
+                  ),
+                  child: Row(
+                    children: [
+                      const SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.amber,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Loading detection model…',
+                        style: TextStyle(
+                          color: Colors.amber.shade900,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              Container(
+                width: double.infinity,
+                height: 260,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(
+                        alpha: isDark ? 0.3 : 0.05,
+                      ),
+                      blurRadius: 10,
+                      spreadRadius: 2,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: _image == null
+                      ? Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.pets,
+                              size: 60,
+                              color: Colors.deepPurple[200],
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              'Upload a photo to begin',
+                              style: TextStyle(
+                                color: Colors.deepPurple[300],
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Image.file(_image!, fit: BoxFit.cover),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        side: BorderSide(
+                          color: Colors.deepPurple.shade400,
+                          width: 2.5,
+                        ),
+                      ),
+                      onPressed: () => _getImage(ImageSource.camera),
+                      icon: Icon(
+                        Icons.camera_alt,
+                        color: Colors.deepPurple.shade700,
+                      ),
+                      label: Text(
+                        'Camera',
+                        style: TextStyle(
+                          color: Colors.deepPurple.shade700,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        side: BorderSide(
+                          color: Colors.deepPurple.shade400,
+                          width: 2.5,
+                        ),
+                      ),
+                      onPressed: () {
+                        AppSounds.playTap();
+                        _getImage(ImageSource.gallery);
+                      },
+                      icon: Icon(
+                        Icons.photo_library,
+                        color: Colors.deepPurple.shade700,
+                      ),
+                      label: Text(
+                        'Gallery',
+                        style: TextStyle(
+                          color: Colors.deepPurple.shade700,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 30),
+              Text(
+                'Systemic Symptoms',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Check any symptoms your cat is currently showing.',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                ),
+              ),
+              const SizedBox(height: 15),
+              _buildSymptomOption(
+                title: 'Vomiting',
+                subtitle: 'Frequent throwing up or dry heaving',
+                value: _isVomiting,
+                onChanged: (v) => setState(() => _isVomiting = v!),
+                isDark: isDark,
+              ),
+              _buildSymptomOption(
+                title: 'Lethargy',
+                subtitle: 'Unusually tired, sleepy, or unresponsive',
+                value: _isLethargic,
+                onChanged: (v) => setState(() => _isLethargic = v!),
+                isDark: isDark,
+              ),
+              _buildSymptomOption(
+                title: 'Loss of Appetite',
+                subtitle: 'Ignoring food or eating very little',
+                value: _lostAppetite,
+                onChanged: (v) => setState(() => _lostAppetite = v!),
+                isDark: isDark,
+              ),
+              if (hasSymptoms) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? const Color(0xFF2A1840)
+                        : Colors.deepPurple.shade50,
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(
+                      color: isDark
+                          ? Colors.deepPurple.shade800
+                          : Colors.deepPurple.shade200,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.lightbulb_outline,
+                        color: isDark
+                            ? Colors.deepPurple.shade300
+                            : Colors.deepPurple.shade700,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _getSymptomInsight(),
+                          style: TextStyle(
+                            color: isDark
+                                ? Colors.deepPurple.shade100
+                                : Colors.deepPurple.shade900,
+                            height: 1.4,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 25),
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple,
+                    foregroundColor: Colors.white,
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                  ),
+                  onPressed: _isScanning
+                      ? null
+                      : () {
+                          AppSounds.playTap();
+                          _runInference();
+                        },
+                  child: _isScanning
+                      ? const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 3,
+                          ),
+                        )
+                      : const Text(
+                          'ANALYZE HEALTH',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: isDarkModeNotifier,
+      builder: (context, isDark, child) {
+        final screens = <Widget>[
+          _buildDashboard(),
+          HistoryScreen(
+            history: _history,
+            onDelete: _deleteHistoryEntry,
+            onClearAll: _clearHistory,
+          ),
+        ];
+
         return Scaffold(
           appBar: AppBar(
             title: const Row(
@@ -302,7 +672,7 @@ class _TriageScreenState extends State<TriageScreen> {
             ),
             centerTitle: true,
             elevation: 0,
-            backgroundColor: Colors.teal,
+            backgroundColor: Colors.deepPurple,
             foregroundColor: Colors.white,
           ),
           drawer: SizedBox(
@@ -320,16 +690,18 @@ class _TriageScreenState extends State<TriageScreen> {
                   children: [
                     const SizedBox(height: 30),
                     GestureDetector(
-                      onTap: () =>
-                          isDarkModeNotifier.value = !isDarkModeNotifier.value,
+                      onTap: () {
+                        AppSounds.playTap();
+                        isDarkModeNotifier.value = !isDarkModeNotifier.value;
+                      },
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 400),
                         curve: Curves.easeInOut,
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           color: isDark
-                              ? Colors.teal.shade700
-                              : Colors.teal.shade50,
+                              ? Colors.deepPurple.shade700
+                              : Colors.deepPurple.shade50,
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
@@ -338,7 +710,7 @@ class _TriageScreenState extends State<TriageScreen> {
                               : Icons.light_mode_rounded,
                           color: isDark
                               ? Colors.amber.shade300
-                              : Colors.teal.shade800,
+                              : Colors.deepPurple.shade800,
                           size: 26,
                         ),
                       ),
@@ -349,339 +721,38 @@ class _TriageScreenState extends State<TriageScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white70 : Colors.teal.shade800,
+                        color: isDark
+                            ? Colors.white70
+                            : Colors.deepPurple.shade800,
                       ),
                     ),
-                    const SizedBox(height: 28),
-                    GestureDetector(
-                      onTap: !_isHistoryLoaded
-                          ? null
-                          : () {
-                              Navigator.pop(context);
-                              _openHistory();
-                            },
-                      child: Opacity(
-                        opacity: _history.isEmpty ? 0.4 : 1.0,
-                        child: Column(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? Colors.teal.shade900
-                                    : Colors.teal.shade50,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.history_rounded,
-                                color: isDark
-                                    ? Colors.tealAccent
-                                    : Colors.teal.shade800,
-                                size: 26,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              'History',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: isDark
-                                    ? Colors.white70
-                                    : Colors.teal.shade800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    const SizedBox(height: 24),
                     const Spacer(),
                   ],
                 ),
               ),
             ),
           ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (_loadError != null)
-                  Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.red.shade300),
-                    ),
-                    child: Text(
-                      '⚠️ $_loadError',
-                      style: TextStyle(
-                        color: Colors.red.shade900,
-                        fontSize: 13,
-                      ),
-                    ),
-                  )
-                else if (!_isModelLoaded)
-                  Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.shade50,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.amber.shade300),
-                    ),
-                    child: Row(
-                      children: [
-                        const SizedBox(
-                          height: 16,
-                          width: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.amber,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Loading detection model…',
-                          style: TextStyle(
-                            color: Colors.amber.shade900,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                Container(
-                  width: double.infinity,
-                  height: 260,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(
-                          alpha: isDark ? 0.3 : 0.05,
-                        ),
-                        blurRadius: 10,
-                        spreadRadius: 2,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: _image == null
-                        ? Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.pets,
-                                size: 60,
-                                color: Colors.teal[200],
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                'Upload a photo to begin',
-                                style: TextStyle(
-                                  color: Colors.teal[300],
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          )
-                        : Image.file(_image!, fit: BoxFit.cover),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          side: BorderSide(
-                            color: Colors.teal.shade400,
-                            width: 2.5,
-                          ),
-                        ),
-                        onPressed: () => _getImage(ImageSource.camera),
-                        icon: Icon(
-                          Icons.camera_alt,
-                          color: Colors.teal.shade700,
-                        ),
-                        label: Text(
-                          'Camera',
-                          style: TextStyle(
-                            color: Colors.teal.shade700,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 15),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          side: BorderSide(
-                            color: Colors.teal.shade400,
-                            width: 2.5,
-                          ),
-                        ),
-                        onPressed: () => _getImage(ImageSource.gallery),
-                        icon: Icon(
-                          Icons.photo_library,
-                          color: Colors.teal.shade700,
-                        ),
-                        label: Text(
-                          'Gallery',
-                          style: TextStyle(
-                            color: Colors.teal.shade700,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 30),
-                Text(
-                  'Systemic Symptoms',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Check any symptoms your cat is currently showing.',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                  ),
-                ),
-                const SizedBox(height: 15),
-                _buildSymptomOption(
-                  title: 'Vomiting',
-                  subtitle: 'Frequent throwing up or dry heaving',
-                  value: _isVomiting,
-                  onChanged: (v) => setState(() => _isVomiting = v!),
-                  isDark: isDark,
-                ),
-                _buildSymptomOption(
-                  title: 'Lethargy',
-                  subtitle: 'Unusually tired, sleepy, or unresponsive',
-                  value: _isLethargic,
-                  onChanged: (v) => setState(() => _isLethargic = v!),
-                  isDark: isDark,
-                ),
-                _buildSymptomOption(
-                  title: 'Loss of Appetite',
-                  subtitle: 'Ignoring food or eating very little',
-                  value: _lostAppetite,
-                  onChanged: (v) => setState(() => _lostAppetite = v!),
-                  isDark: isDark,
-                ),
-                if (hasSymptoms) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? const Color(0xFF0F2D40)
-                          : Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(15),
-                      border: Border.all(
-                        color: isDark
-                            ? Colors.blue.shade800
-                            : Colors.blue.shade200,
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          Icons.lightbulb_outline,
-                          color: isDark
-                              ? Colors.blue.shade300
-                              : Colors.blue.shade700,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            _getSymptomInsight(),
-                            style: TextStyle(
-                              color: isDark
-                                  ? Colors.blue.shade100
-                                  : Colors.blue.shade900,
-                              height: 1.4,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 25),
-                SizedBox(
-                  width: double.infinity,
-                  height: 55,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal,
-                      foregroundColor: Colors.white,
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                    ),
-                    onPressed:
-                        (_image == null || !_isModelLoaded || _isScanning)
-                        ? null
-                        : _runInference,
-                    child: _isScanning
-                        ? const SizedBox(
-                            height: 24,
-                            width: 24,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 3,
-                            ),
-                          )
-                        : const Text(
-                            'ANALYZE HEALTH',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 40),
-              ],
-            ),
+          body: IndexedStack(index: _selectedIndex, children: screens),
+          bottomNavigationBar: NavigationBar(
+            backgroundColor: Colors.white,
+            indicatorColor: Colors.deepPurple.shade100,
+            selectedIndex: _selectedIndex,
+            onDestinationSelected: (index) {
+              setState(() => _selectedIndex = index);
+            },
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.dashboard_outlined),
+                selectedIcon: Icon(Icons.dashboard_rounded),
+                label: 'Dashboard',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.history_outlined),
+                selectedIcon: Icon(Icons.history_rounded),
+                label: 'History',
+              ),
+            ],
           ),
         );
       },

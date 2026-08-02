@@ -40,44 +40,52 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.teal,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AnimatedOpacity(
-              duration: const Duration(milliseconds: 800),
-              opacity: _pawOpacity,
-              child: const Icon(Icons.pets, size: 90, color: Colors.white),
-            ),
-            const SizedBox(height: 20),
-            AnimatedOpacity(
-              duration: const Duration(milliseconds: 800),
-              opacity: _textOpacity,
-              child: Column(
-                children: [
-                  const Text(
-                    'FeliVet Insights',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'We care about your fur babies.',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontStyle: FontStyle.italic,
-                      color: Colors.teal.shade100,
-                    ),
-                  ),
-                ],
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF7C4DFF), Color(0xFFEDE7F6)],
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedOpacity(
+                duration: const Duration(milliseconds: 800),
+                opacity: _pawOpacity,
+                child: const Icon(Icons.pets, size: 90, color: Colors.white),
               ),
-            ),
-          ],
+              const SizedBox(height: 20),
+              AnimatedOpacity(
+                duration: const Duration(milliseconds: 800),
+                opacity: _textOpacity,
+                child: Column(
+                  children: [
+                    const Text(
+                      'FeliVet Insights',
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'We care about your fur babies.',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontStyle: FontStyle.italic,
+                        color: Colors.deepPurple.shade50,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

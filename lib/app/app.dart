@@ -16,7 +16,8 @@ class FeliVetApp extends StatelessWidget {
           title: 'FeliVet Insight',
           themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
           theme: ThemeData(
-            primarySwatch: Colors.teal,
+            primarySwatch: Colors.deepPurple,
+            primaryColor: Colors.deepPurple,
             useMaterial3: true,
             fontFamily: 'Roboto',
             brightness: Brightness.light,
@@ -24,7 +25,8 @@ class FeliVetApp extends StatelessWidget {
             cardColor: Colors.white,
           ),
           darkTheme: ThemeData(
-            primarySwatch: Colors.teal,
+            primarySwatch: Colors.deepPurple,
+            primaryColor: Colors.deepPurple,
             useMaterial3: true,
             fontFamily: 'Roboto',
             brightness: Brightness.dark,

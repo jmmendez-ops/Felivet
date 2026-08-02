@@ -1,7 +1,6 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
+import '../core/sound_utils.dart';
 import '../models/triage_models.dart';
 import 'result_screen.dart';
 
@@ -30,7 +29,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
     _items = List<TriageResult>.from(widget.history);
   }
 
+  @override
+  void didUpdateWidget(covariant HistoryScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.history != widget.history) {
+      _items = List<TriageResult>.from(widget.history);
+    }
+  }
+
   Future<void> _confirmDelete(TriageResult entry) async {
+    AppSounds.playTap();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -57,6 +65,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Future<void> _confirmClearAll() async {
+    AppSounds.playTap();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -87,7 +96,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Analysis History'),
-        backgroundColor: Colors.teal,
+        backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
         actions: [
           if (_items.isNotEmpty)
@@ -171,17 +180,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         tooltip: 'Delete',
                         onPressed: () => _confirmDelete(r),
                       ),
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ResultScreen(
-                            result: r,
-                            history: _items,
-                            onDeleteHistoryEntry: widget.onDelete,
-                            onClearHistory: widget.onClearAll,
+                      onTap: () {
+                        AppSounds.playTap();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ResultScreen(
+                              result: r,
+                              history: _items,
+                              onDeleteHistoryEntry: widget.onDelete,
+                              onClearHistory: widget.onClearAll,
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
                   ),
                 );

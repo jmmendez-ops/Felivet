@@ -106,6 +106,25 @@ class TriageResult {
     required this.image,
   });
 
+  TriageResult copyWith({String? reasoning, File? image}) {
+    return TriageResult(
+      presenceStatus: presenceStatus,
+      detectedDisease: detectedDisease,
+      evidenceStrength: evidenceStrength,
+      urgency: urgency,
+      confidence: confidence,
+      confidenceLevel: confidenceLevel,
+      diseaseRisk: diseaseRisk,
+      detectionCount: detectionCount,
+      symptomCount: symptomCount,
+      isAmbiguous: isAmbiguous,
+      reasoning: reasoning ?? this.reasoning,
+      recommendation: recommendation,
+      timestamp: timestamp,
+      image: image ?? this.image,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
     'presenceStatus': presenceStatus.name,
     'detectedDisease': detectedDisease,

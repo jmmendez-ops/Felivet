@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../core/app_state.dart';
+import '../core/sound_utils.dart';
 import '../models/triage_models.dart';
 
 class ResultScreen extends StatelessWidget {
@@ -20,6 +21,7 @@ class ResultScreen extends StatelessWidget {
   });
 
   void _showPhotoPopup(BuildContext context, File image) {
+    AppSounds.playTap();
     showDialog(
       context: context,
       barrierColor: Colors.black87,
