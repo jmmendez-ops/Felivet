@@ -20,10 +20,28 @@ double? extractConfidence(Map res) {
   return null;
 }
 
+String buildDailyCareTip({
+  required int scanCount,
+  required UrgencyLevel? latestUrgency,
+  DateTime? date,
+}) {
+  if (scanCount == 0) {
+    return 'Daily care tip: start with a photo and a symptom check so you can build a simple care timeline for your cat.';
+  }
+  if (latestUrgency == UrgencyLevel.high) {
+    return 'Daily care tip: a high-urgency result means your cat should be watched closely. Keep food, water, and a quiet rest area ready, and contact your vet promptly if symptoms worsen.';
+  }
+  if (latestUrgency == UrgencyLevel.moderate) {
+    return 'Daily care tip: a moderate-urgency result deserves close monitoring. Keep your cat comfortable and watch for worsening appetite, lethargy, or vomiting.';
+  }
+  return 'Daily care tip: a stable result still benefits from steady observation. Keep routines calm, check the skin area regularly, and seek care if anything changes.';
+}
+
 TriageResult runExpertSystem({
   required List<DiseaseEvidence> evidenceList,
   required int symptomCount,
   File? image,
+  List<String> selectedSymptoms = const [],
 }) {
   final sorted = [...evidenceList]
     ..sort((a, b) {
@@ -199,6 +217,11 @@ TriageResult runExpertSystem({
           'AI detected a likely localized case of ${top.disease}. This skin condition is contagious and requires medical treatment. Please consult a vet soon.';
     }
   }
+
+  final symptomContext = selectedSymptoms.isEmpty
+      ? 'No systemic symptoms were reported.'
+      : 'Reported systemic symptoms include ${selectedSymptoms.join(', ')}.';
+  reasoning = '$reasoning\n\nSymptom context: $symptomContext';
 
   return TriageResult(
     presenceStatus: presence,

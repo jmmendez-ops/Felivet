@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../core/app_state.dart';
 import '../core/sound_utils.dart';
 import '../models/triage_models.dart';
+import '../services/pdf_report_service.dart';
+import 'disease_info_screen.dart';
 
 class ResultScreen extends StatelessWidget {
   final TriageResult result;
@@ -75,8 +77,9 @@ class ResultScreen extends StatelessWidget {
     }
   }
 
-  String _headerLabel() =>
-      result.symptomCount > 0 ? 'Triage Analyzation:' : 'Analyzation:';
+  String _headerLabel() => result.detectedDisease != null
+      ? result.detectedDisease!.toUpperCase()
+      : 'No detected disease';
 
   @override
   Widget build(BuildContext context) {
@@ -132,6 +135,52 @@ class ResultScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (result.isLowQuality)
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? const Color(0xFF2B1A0F)
+                              : Colors.amber.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.orange.shade700
+                                : Colors.amber.shade300,
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.warning_amber_rounded,
+                              color: isDark
+                                  ? Colors.orange.shade300
+                                  : Colors.amber.shade800,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'This scan used a lower-quality photo. Results may be less reliable — consider retaking the image for a clearer analysis.',
+                                style: TextStyle(
+                                  color: isDark
+                                      ? Colors.orange.shade100
+                                      : Colors.amber.shade900,
+                                  fontSize: 12.5,
+                                  height: 1.4,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(18),
@@ -165,35 +214,39 @@ class ResultScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  _headerLabel(),
+                                  'Skin Disease Detected:',
                                   style: TextStyle(
-                                    fontSize: 14,
+                                    fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                     color: isDark
-                                        ? Colors.grey.shade300
-                                        : Colors.grey.shade700,
+                                        ? Colors.white70
+                                        : Colors.black54,
                                   ),
                                 ),
+                                const SizedBox(height: 6),
                                 Text(
-                                  result.urgency.label,
+                                  _headerLabel(),
                                   style: TextStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.bold,
                                     color: color,
                                   ),
                                 ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  result.detectedDisease != null
-                                      ? 'AI Detection: ${result.detectedDisease}'
-                                      : 'AI Detection: No skin disease detected',
-                                  style: TextStyle(
-                                    fontSize: 13.5,
-                                    color: isDark
-                                        ? Colors.grey.shade300
-                                        : Colors.grey.shade800,
+                                if (result.detectedDisease != null &&
+                                    result.detectedDisease!.toLowerCase() ==
+                                        'ringworm') ...[
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Ringworm is a contagious fungal infection. Keep your cat isolated and consult your veterinarian for treatment.',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      height: 1.4,
+                                      color: isDark
+                                          ? Colors.white70
+                                          : Colors.black87,
+                                    ),
                                   ),
-                                ),
+                                ],
                               ],
                             ),
                           ),
@@ -344,7 +397,7 @@ class ResultScreen extends StatelessWidget {
                                   TextSpan(
                                     children: [
                                       TextSpan(
-                                        text: '${_headerLabel()} ',
+                                        text: 'Triage Analyzation:',
                                         style: TextStyle(
                                           fontSize: 15,
                                           fontWeight: FontWeight.bold,
@@ -354,7 +407,7 @@ class ResultScreen extends StatelessWidget {
                                         ),
                                       ),
                                       TextSpan(
-                                        text: result.urgency.label,
+                                        text: ' ${result.urgency.label}',
                                         style: TextStyle(
                                           fontSize: 15,
                                           fontWeight: FontWeight.bold,
@@ -368,28 +421,101 @@ class ResultScreen extends StatelessWidget {
                             ],
                           ),
                           const SizedBox(height: 18),
-                          Text(
-                            'Diagnosis summary',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: isDark
-                                  ? Colors.grey.shade400
-                                  : Colors.grey.shade700,
+                          if (result.comparisonTrend != null &&
+                              result.comparisonSummary != null) ...[
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              margin: const EdgeInsets.only(bottom: 12),
+                              decoration: BoxDecoration(
+                                color: color.withValues(
+                                  alpha: isDark ? 0.16 : 0.10,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(
+                                    Icons.compare_arrows_rounded,
+                                    color: color,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      '${result.comparisonTrend!.label} · ${result.comparisonSummary}',
+                                      style: TextStyle(
+                                        color: isDark
+                                            ? Colors.white
+                                            : Colors.black87,
+                                        fontSize: 12.5,
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            result.detectedDisease != null
-                                ? 'AI Detection: ${result.detectedDisease}'
-                                : 'AI Detection: No skin disease detected',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white : Colors.black87,
-                            ),
-                          ),
+                          ],
                           const SizedBox(height: 18),
+                          if (result.urgency == UrgencyLevel.high) ...[
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              margin: const EdgeInsets.only(bottom: 12),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? const Color(0xFF2B1112)
+                                    : Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isDark
+                                      ? const Color(0xFFB23A3A)
+                                      : Colors.red.shade300,
+                                ),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(
+                                    Icons.emergency_outlined,
+                                    color: Color(0xFFFF6B6B),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Emergency advice: If your cat is struggling to breathe, collapsing, refusing water, or appears much worse than usual, seek urgent veterinary help now.',
+                                      style: TextStyle(
+                                        color: isDark
+                                            ? const Color(0xFFFFE5E5)
+                                            : Colors.red.shade900,
+                                        fontSize: 12.5,
+                                        height: 1.4,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          if (result.detectedDisease != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: OutlinedButton.icon(
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => DiseaseInfoScreen(
+                                      diseaseName: result.detectedDisease!,
+                                    ),
+                                  ),
+                                ),
+                                icon: const Icon(Icons.info_outline),
+                                label: const Text('View disease information'),
+                              ),
+                            ),
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(16),
@@ -444,6 +570,36 @@ class ResultScreen extends StatelessWidget {
                                           color: color,
                                         ),
                                       ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 14),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    _buildInfoPill(
+                                      icon: Icons.insights_rounded,
+                                      label: result.confidence != null
+                                          ? '${(result.confidence! * 100).toStringAsFixed(0)}% confidence'
+                                          : 'Confidence pending',
+                                      color: color,
+                                      isDark: isDark,
+                                    ),
+                                    _buildInfoPill(
+                                      icon: Icons.checklist_rtl_rounded,
+                                      label:
+                                          '${result.symptomCount} symptom${result.symptomCount == 1 ? '' : 's'} selected',
+                                      color: color,
+                                      isDark: isDark,
+                                    ),
+                                    _buildInfoPill(
+                                      icon: Icons.health_and_safety_outlined,
+                                      label:
+                                          result.diseaseRisk?.label ??
+                                          'Clinical risk pending',
+                                      color: color,
+                                      isDark: isDark,
                                     ),
                                   ],
                                 ),
@@ -589,8 +745,24 @@ class ResultScreen extends StatelessWidget {
                             width: double.infinity,
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).cardColor,
-                              borderRadius: BorderRadius.circular(16),
+                              color: isDark
+                                  ? const Color(0xFF1F1F1F)
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: color.withValues(
+                                  alpha: isDark ? 0.25 : 0.16,
+                                ),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(
+                                    alpha: isDark ? 0.25 : 0.05,
+                                  ),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -600,9 +772,7 @@ class ResultScreen extends StatelessWidget {
                                     Icon(
                                       Icons.psychology_outlined,
                                       size: 15,
-                                      color: isDark
-                                          ? Colors.grey.shade400
-                                          : Colors.grey.shade600,
+                                      color: color,
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
@@ -611,7 +781,7 @@ class ResultScreen extends StatelessWidget {
                                         fontSize: 12.5,
                                         fontWeight: FontWeight.bold,
                                         color: isDark
-                                            ? Colors.grey.shade300
+                                            ? Colors.grey.shade200
                                             : Colors.grey.shade700,
                                       ),
                                     ),
@@ -624,7 +794,7 @@ class ResultScreen extends StatelessWidget {
                                     fontSize: 13.5,
                                     height: 1.5,
                                     color: isDark
-                                        ? Colors.grey.shade200
+                                        ? Colors.grey.shade100
                                         : Colors.black87,
                                   ),
                                 ),
@@ -709,8 +879,8 @@ class ResultScreen extends StatelessWidget {
                         ),
                         const SizedBox(width: 14),
                         Expanded(
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
+                          child: FilledButton.icon(
+                            style: FilledButton.styleFrom(
                               backgroundColor: color,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -719,10 +889,34 @@ class ResultScreen extends StatelessWidget {
                               ),
                               elevation: 3,
                             ),
-                            onPressed: () => Navigator.pop(context),
-                            icon: const Icon(Icons.refresh, size: 18),
+                            onPressed: () async {
+                              try {
+                                final file =
+                                    await PdfReportService.generateScanReport(
+                                      result,
+                                    );
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Report saved to ${file.path}',
+                                    ),
+                                  ),
+                                );
+                              } catch (e) {
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Unable to create PDF report: $e',
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.picture_as_pdf, size: 18),
                             label: const Text(
-                              'Analyze again',
+                              'Export PDF',
                               style: TextStyle(fontWeight: FontWeight.bold),
                             ),
                           ),
@@ -736,6 +930,36 @@ class ResultScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildInfoPill({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required bool isDark,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isDark ? 0.16 : 0.10),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 

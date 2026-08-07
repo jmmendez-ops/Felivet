@@ -47,6 +47,7 @@ void main() {
           history: const [],
           onDelete: (_) async {},
           onClearAll: () async {},
+          onRefresh: () async {},
         ),
       ),
     );
@@ -59,6 +60,7 @@ void main() {
           history: [initialResult],
           onDelete: (_) async {},
           onClearAll: () async {},
+          onRefresh: () async {},
         ),
       ),
     );
@@ -72,6 +74,7 @@ void main() {
           history: [updatedResult],
           onDelete: (_) async {},
           onClearAll: () async {},
+          onRefresh: () async {},
         ),
       ),
     );

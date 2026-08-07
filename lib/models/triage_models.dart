@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
+
 enum DiseasePresenceStatus { detected, likelyDetected, uncertain, notDetected }
 
 enum EvidenceStrength { strong, moderate, weak, insufficient }
@@ -10,6 +12,8 @@ enum UrgencyLevel { stable, moderate, high }
 enum DiseaseRiskLevel { low, moderate, high }
 
 enum ConfidenceLevel { low, moderate, high }
+
+enum ScanComparisonTrend { improved, worsened, noChange }
 
 extension DiseasePresenceStatusX on DiseasePresenceStatus {
   String get label => switch (this) {
@@ -40,6 +44,20 @@ extension UrgencyLevelX on UrgencyLevel {
     UrgencyLevel.stable => '✅',
     UrgencyLevel.moderate => '⚠️',
     UrgencyLevel.high => '🚨',
+  };
+
+  Color get color => switch (this) {
+    UrgencyLevel.stable => const Color(0xFF3FA85C),
+    UrgencyLevel.moderate => const Color(0xFFF2A93B),
+    UrgencyLevel.high => const Color(0xFFE0402C),
+  };
+}
+
+extension ScanComparisonTrendX on ScanComparisonTrend {
+  String get label => switch (this) {
+    ScanComparisonTrend.improved => 'Improved',
+    ScanComparisonTrend.worsened => 'Worsened',
+    ScanComparisonTrend.noChange => 'No Change',
   };
 }
 
@@ -88,6 +106,11 @@ class TriageResult {
   final String recommendation;
   final DateTime timestamp;
   final File? image;
+  final String? catId;
+  final List<String> selectedSymptoms;
+  final ScanComparisonTrend? comparisonTrend;
+  final String? comparisonSummary;
+  final bool isLowQuality;
 
   const TriageResult({
     required this.presenceStatus,
@@ -104,9 +127,22 @@ class TriageResult {
     required this.recommendation,
     required this.timestamp,
     required this.image,
+    this.catId,
+    this.selectedSymptoms = const [],
+    this.comparisonTrend,
+    this.comparisonSummary,
+    this.isLowQuality = false,
   });
 
-  TriageResult copyWith({String? reasoning, File? image}) {
+  TriageResult copyWith({
+    String? reasoning,
+    File? image,
+    String? catId,
+    List<String>? selectedSymptoms,
+    ScanComparisonTrend? comparisonTrend,
+    String? comparisonSummary,
+    bool? isLowQuality,
+  }) {
     return TriageResult(
       presenceStatus: presenceStatus,
       detectedDisease: detectedDisease,
@@ -122,8 +158,38 @@ class TriageResult {
       recommendation: recommendation,
       timestamp: timestamp,
       image: image ?? this.image,
+      catId: catId ?? this.catId,
+      selectedSymptoms: selectedSymptoms ?? this.selectedSymptoms,
+      comparisonTrend: comparisonTrend ?? this.comparisonTrend,
+      comparisonSummary: comparisonSummary ?? this.comparisonSummary,
+      isLowQuality: isLowQuality ?? this.isLowQuality,
     );
   }
+
+  ScanComparisonTrend compareToPrevious(TriageResult previous) {
+    final currentRank = _urgencyRank(urgency);
+    final previousRank = _urgencyRank(previous.urgency);
+
+    if (currentRank < previousRank) return ScanComparisonTrend.improved;
+    if (currentRank > previousRank) return ScanComparisonTrend.worsened;
+
+    if (confidence != null && previous.confidence != null) {
+      if (confidence! > previous.confidence! + 0.06) {
+        return ScanComparisonTrend.improved;
+      }
+      if (confidence! < previous.confidence! - 0.06) {
+        return ScanComparisonTrend.worsened;
+      }
+    }
+
+    return ScanComparisonTrend.noChange;
+  }
+
+  int _urgencyRank(UrgencyLevel level) => switch (level) {
+    UrgencyLevel.stable => 0,
+    UrgencyLevel.moderate => 1,
+    UrgencyLevel.high => 2,
+  };
 
   Map<String, dynamic> toJson() => {
     'presenceStatus': presenceStatus.name,
@@ -140,6 +206,11 @@ class TriageResult {
     'recommendation': recommendation,
     'timestamp': timestamp.toIso8601String(),
     'imagePath': image?.path,
+    'catId': catId,
+    'selectedSymptoms': selectedSymptoms,
+    'comparisonTrend': comparisonTrend?.name,
+    'comparisonSummary': comparisonSummary,
+    'isLowQuality': isLowQuality,
   };
 
   factory TriageResult.fromJson(Map<String, dynamic> json) {
@@ -169,6 +240,13 @@ class TriageResult {
       image: (imagePath != null && imagePath.isNotEmpty)
           ? File(imagePath)
           : null,
+      catId: json['catId'] as String?,
+      selectedSymptoms: List<String>.from(json['selectedSymptoms'] ?? const []),
+      comparisonTrend: json['comparisonTrend'] != null
+          ? ScanComparisonTrend.values.byName(json['comparisonTrend'] as String)
+          : null,
+      comparisonSummary: json['comparisonSummary'] as String?,
+      isLowQuality: json['isLowQuality'] as bool? ?? false,
     );
   }
 }
