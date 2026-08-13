@@ -1,4 +1,4 @@
-# 🐾 FeliVet Insight
+# 🐾 FeliVet Insigh
 
 **A fast, on-device AI first-read on common feline skin conditions  from a photo.**
 
