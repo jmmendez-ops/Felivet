@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../core/sound_utils.dart';
+import '../core/ui_tokens.dart';
 import '../models/triage_models.dart';
 import 'result_screen.dart';
 
@@ -169,20 +170,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: r.urgency.color.withValues(alpha: 0.24),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
+                    decoration: FeliVetUi.cardDecoration(context),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(16),
                       onTap: () {
@@ -202,8 +190,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       child: Row(
                         children: [
                           Container(
-                            width: 46,
-                            height: 46,
+                            width: 128,
+                            height: 96,
                             decoration: BoxDecoration(
                               color: r.urgency.color.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(12),
@@ -214,9 +202,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                       borderRadius: BorderRadius.circular(10),
                                       child: Image.file(
                                         r.image!,
-                                        width: 46,
-                                        height: 46,
+                                        width: 128,
+                                        height: 96,
                                         fit: BoxFit.cover,
+                                        cacheWidth: 256,
+                                        filterQuality: FilterQuality.low,
                                         errorBuilder: (_, _, _) => Text(
                                           r.urgency.icon,
                                           style: const TextStyle(fontSize: 22),
@@ -236,17 +226,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               children: [
                                 Text(
                                   r.detectedDisease ?? 'No disease detected',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                  style: FeliVetUi.heading(context, size: 16),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
                                   '${r.urgency.label} · ${r.timestamp.day}/${r.timestamp.month}/${r.timestamp.year} ${r.timestamp.hour.toString().padLeft(2, '0')}:${r.timestamp.minute.toString().padLeft(2, '0')}',
-                                  style: TextStyle(
-                                    color: Colors.grey.shade600,
-                                    fontSize: 12,
-                                  ),
+                                  style: FeliVetUi.muted(context, size: 12),
                                 ),
                                 if (r.confidence != null)
                                   Padding(

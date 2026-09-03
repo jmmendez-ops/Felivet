@@ -7,10 +7,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_vision/flutter_vision.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../config/detection_config.dart';
 import '../core/app_state.dart';
 import '../core/sound_utils.dart';
+import '../core/ui_tokens.dart';
 import '../models/cat_profile.dart';
 import '../models/triage_models.dart';
 import '../services/cat_profile_storage.dart';
@@ -57,6 +60,7 @@ List<FlSpot> buildTrendSpots(List<TriageResult> history) {
 
 class _TriageScreenState extends State<TriageScreen> {
   File? _image;
+  bool _hideLatestImage = false;
   final ImagePicker _picker = ImagePicker();
 
   FlutterVision? _vision;
@@ -69,6 +73,7 @@ class _TriageScreenState extends State<TriageScreen> {
   bool _lostAppetite = false;
 
   List<TriageResult> _history = [];
+  final Map<String, bool> _pdfAvailability = {};
   List<CatProfile> _profiles = [];
   CatProfile? _activeProfile;
   int _selectedIndex = 0;
@@ -92,6 +97,8 @@ class _TriageScreenState extends State<TriageScreen> {
         (profile) => profile?.id == activeId,
         orElse: () => profiles.first,
       );
+      _hideLatestImage = false;
+      _image = _latestActiveImage;
     });
   }
 
@@ -102,6 +109,7 @@ class _TriageScreenState extends State<TriageScreen> {
       setState(() {
         _history = saved;
       });
+      _refreshPdfAvailability(saved);
     }
     // Debug: log loaded history count so devs can verify persistence
     // This will appear in device logs when running in debug mode.
@@ -109,8 +117,8 @@ class _TriageScreenState extends State<TriageScreen> {
     print('TriageScreen: loaded history with ${saved.length} entries');
   }
 
-  Future<void> _persistHistory() async {
-    await HistoryStorage.save(_history);
+  Future<List<TriageResult>> _persistHistory() async {
+    return HistoryStorage.save(_history);
   }
 
   List<TriageResult> get _activeCatHistory {
@@ -122,10 +130,33 @@ class _TriageScreenState extends State<TriageScreen> {
         .toList();
   }
 
+  File? get _latestActiveImage {
+    final activeHistory = _activeCatHistory;
+    return activeHistory.isEmpty ? null : activeHistory.first.image;
+  }
+
+  File? get _previewImage =>
+      _hideLatestImage ? null : (_image ?? _latestActiveImage);
+
+  String _pdfKey(TriageResult result) => result.timestamp.toIso8601String();
+
+  Future<void> _refreshPdfAvailability(List<TriageResult> results) async {
+    final availability = <String, bool>{};
+    for (final result in results) {
+      final file = await PdfReportService.reportFileFor(result);
+      availability[_pdfKey(result)] = await file.exists();
+    }
+    if (mounted) setState(() => _pdfAvailability.addAll(availability));
+  }
+
   Future<void> _changeActiveProfile(CatProfile profile) async {
     await CatProfileStorage.saveActiveCatId(profile.id);
     if (!mounted) return;
-    setState(() => _activeProfile = profile);
+    setState(() {
+      _activeProfile = profile;
+      _hideLatestImage = false;
+      _image = _latestActiveImage;
+    });
   }
 
   Future<void> _showAddCatDialog({bool fromSettings = false}) async {
@@ -141,64 +172,78 @@ class _TriageScreenState extends State<TriageScreen> {
           builder: (context, setDialogState) {
             return AlertDialog(
               title: const Text('Add cat profile'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (selectedPhoto != null) ...[
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.file(
-                        selectedPhoto!,
-                        height: 120,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  Row(
+              content: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(context).height * 0.55,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () async {
-                            final pickedFile = await picker.pickImage(
-                              source: ImageSource.gallery,
-                            );
-                            if (pickedFile != null) {
-                              setDialogState(() {
-                                selectedPhoto = File(pickedFile.path);
-                              });
-                            }
-                          },
-                          icon: const Icon(Icons.photo_library_outlined),
-                          label: const Text('Add photo'),
+                      if (selectedPhoto != null) ...[
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.file(
+                            selectedPhoto!,
+                            height: 120,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                final pickedFile = await picker.pickImage(
+                                  source: ImageSource.gallery,
+                                );
+                                if (pickedFile != null) {
+                                  final adjustedPhoto =
+                                      await _adjustProfilePhoto(
+                                        File(pickedFile.path),
+                                      );
+                                  if (adjustedPhoto == null) return;
+                                  setDialogState(() {
+                                    selectedPhoto = adjustedPhoto;
+                                  });
+                                }
+                              },
+                              icon: const Icon(Icons.photo_library_outlined),
+                              label: const Text('Add photo'),
+                            ),
+                          ),
+                          if (selectedPhoto != null) ...[
+                            const SizedBox(width: 8),
+                            TextButton(
+                              onPressed: () {
+                                setDialogState(() => selectedPhoto = null);
+                              },
+                              child: const Text('Clear'),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: nameController,
+                        autofocus: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Cat name',
                         ),
                       ),
-                      if (selectedPhoto != null) ...[
-                        const SizedBox(width: 8),
-                        TextButton(
-                          onPressed: () {
-                            setDialogState(() => selectedPhoto = null);
-                          },
-                          child: const Text('Clear'),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: breedController,
+                        decoration: const InputDecoration(
+                          labelText: 'Breed (optional)',
                         ),
-                      ],
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: nameController,
-                    autofocus: true,
-                    decoration: const InputDecoration(labelText: 'Cat name'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: breedController,
-                    decoration: const InputDecoration(
-                      labelText: 'Breed (optional)',
-                    ),
-                  ),
-                ],
+                ),
               ),
               actions: [
                 TextButton(
@@ -309,6 +354,120 @@ class _TriageScreenState extends State<TriageScreen> {
     }
   }
 
+  Future<File?> _adjustProfilePhoto(File source) async {
+    final bytes = await source.readAsBytes();
+    final decoded = img.decodeImage(bytes);
+    if (decoded == null || !mounted) return source;
+    var zoom = 1.0;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Adjust profile photo'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipOval(
+                child: SizedBox(
+                  width: 190,
+                  height: 190,
+                  child: ColoredBox(
+                    color: Colors.black12,
+                    child: Transform.scale(
+                      scale: zoom,
+                      child: Image.file(
+                        source,
+                        fit: BoxFit.cover,
+                        width: 190,
+                        height: 190,
+                        cacheWidth: 380,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Icon(Icons.zoom_out, size: 18),
+                  Expanded(
+                    child: Slider(
+                      value: zoom,
+                      min: 1,
+                      max: 3,
+                      divisions: 20,
+                      label: '${zoom.toStringAsFixed(1)}x',
+                      onChanged: (value) => setDialogState(() => zoom = value),
+                    ),
+                  ),
+                  const Icon(Icons.zoom_in, size: 18),
+                ],
+              ),
+              Text(
+                'Use the slider to fit the cat inside the circle.',
+                style: FeliVetUi.muted(context, size: 12),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Use photo'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true) return null;
+
+    final cropSize =
+        (decoded.width < decoded.height ? decoded.width : decoded.height) /
+        zoom;
+    final cropped = img.copyCrop(
+      decoded,
+      x: ((decoded.width - cropSize) / 2).round(),
+      y: ((decoded.height - cropSize) / 2).round(),
+      width: cropSize.round(),
+      height: cropSize.round(),
+    );
+    final directory = await getApplicationDocumentsDirectory();
+    final output = File(
+      '${directory.path}/cat_profile_${DateTime.now().microsecondsSinceEpoch}.jpg',
+    );
+    await output.writeAsBytes(img.encodeJpg(cropped, quality: 88));
+    return output;
+  }
+
+  Widget _buildCatAvatar(CatProfile profile, {double radius = 10}) {
+    final photoPath = profile.photoPath;
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: Colors.deepPurple.shade100,
+      child: photoPath == null
+          ? Text(
+              profile.name.substring(0, 1).toUpperCase(),
+              style: TextStyle(fontSize: radius, color: Colors.deepPurple),
+            )
+          : ClipOval(
+              child: Image.file(
+                File(photoPath),
+                width: radius * 2,
+                height: radius * 2,
+                fit: BoxFit.cover,
+                cacheWidth: (radius * 4).round(),
+                errorBuilder: (_, _, _) => Text(
+                  profile.name.substring(0, 1).toUpperCase(),
+                  style: TextStyle(fontSize: radius, color: Colors.deepPurple),
+                ),
+              ),
+            ),
+    );
+  }
+
   Future<void> _deleteHistoryEntry(TriageResult entry) async {
     setState(() => _history.remove(entry));
     await HistoryStorage.deleteEntry(entry);
@@ -316,7 +475,10 @@ class _TriageScreenState extends State<TriageScreen> {
   }
 
   Future<void> _clearHistory() async {
-    setState(() => _history = []);
+    setState(() {
+      _history = [];
+      _image = null;
+    });
     await HistoryStorage.clear();
   }
 
@@ -353,6 +515,7 @@ class _TriageScreenState extends State<TriageScreen> {
       final newImage = File(pickedFile.path);
       setState(() {
         _image = newImage;
+        _hideLatestImage = false;
         _imageQualityMessage = null;
       });
       await _assessImageQuality(newImage);
@@ -635,14 +798,21 @@ class _TriageScreenState extends State<TriageScreen> {
         _isScanning = false;
         _history.insert(0, resultWithIntake);
       });
-      await _persistHistory();
+      final persistedHistory = await _persistHistory();
+      if (mounted) {
+        setState(() {
+          _history = persistedHistory;
+          _image = persistedHistory.first.image;
+        });
+      }
+      final persistedResult = persistedHistory.first;
 
       if (!mounted) return;
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => ResultScreen(
-            result: resultWithIntake,
+            result: persistedResult,
             history: _history,
             onDeleteHistoryEntry: _deleteHistoryEntry,
             onClearHistory: _clearHistory,
@@ -704,7 +874,7 @@ class _TriageScreenState extends State<TriageScreen> {
     final info = _symptomInfo[title.toLowerCase()] ?? _symptomInfo['default']!;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 6),
       decoration: BoxDecoration(
         color: value
             ? (isDark
@@ -755,19 +925,35 @@ class _TriageScreenState extends State<TriageScreen> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.info_outline, size: 18),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 24,
+                  height: 24,
+                ),
+                icon: const Icon(Icons.info_outline, size: 20),
                 tooltip: 'Why this matters',
                 onPressed: () {
                   AppSounds.playTap();
                   showDialog(
                     context: context,
                     builder: (_) => AlertDialog(
-                      title: Text(
-                        title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.2,
-                        ),
+                      title: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.2,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Close insight',
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
                       ),
                       content: Text(
                         info,
@@ -795,19 +981,22 @@ class _TriageScreenState extends State<TriageScreen> {
             subtitle,
             style: TextStyle(
               color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: FontWeight.w500,
               height: 1.3,
             ),
           ),
           value: value,
           onChanged: onChanged,
+          dense: true,
+          horizontalTitleGap: 8,
+          minLeadingWidth: 24,
           activeColor: isDark ? Colors.white70 : Colors.black87,
           checkColor: isDark ? Colors.black87 : Colors.white,
           controlAffinity: ListTileControlAffinity.leading,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 12,
-            vertical: 4,
+            vertical: 0,
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
@@ -831,7 +1020,7 @@ class _TriageScreenState extends State<TriageScreen> {
   Widget _buildQuickStats(bool isDark) {
     final activeHistory = _activeCatHistory;
     final latest = activeHistory.isNotEmpty ? activeHistory.first : null;
-    final latestLabel = latest?.detectedDisease ?? 'No scan yet';
+    final latestLabel = latest == null ? 'No scan yet' : latest.urgency.label;
     final urgencyColor = latest?.urgency.color ?? Colors.deepPurple;
     final tip = buildDailyCareTip(
       scanCount: activeHistory.length,
@@ -846,13 +1035,7 @@ class _TriageScreenState extends State<TriageScreen> {
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1F1F1F) : const Color(0xFFF5F5F7),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isDark ? Colors.white10 : Colors.grey.shade200,
-            ),
-          ),
+          decoration: FeliVetUi.cardDecoration(context, elevated: true),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -901,6 +1084,13 @@ class _TriageScreenState extends State<TriageScreen> {
                     ),
                 ],
               ),
+              if (latest != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  'Scanned: ${latest.timestamp.day}/${latest.timestamp.month}/${latest.timestamp.year} ${latest.timestamp.hour.toString().padLeft(2, '0')}:${latest.timestamp.minute.toString().padLeft(2, '0')}',
+                  style: FeliVetUi.muted(context, size: 12),
+                ),
+              ],
               const SizedBox(height: 10),
               Row(
                 children: [
@@ -911,14 +1101,15 @@ class _TriageScreenState extends State<TriageScreen> {
                     isDark,
                   ),
                   const SizedBox(width: 8),
-                  _statChip(
-                    Icons.verified_rounded,
-                    latest?.confidence != null
-                        ? '${(latest!.confidence! * 100).toStringAsFixed(0)}%'
-                        : '—',
-                    'Confidence',
-                    isDark,
-                  ),
+                  if (latest != null)
+                    _statChip(
+                      Icons.verified_rounded,
+                      latest.confidence != null
+                          ? '${(latest.confidence! * 100).toStringAsFixed(0)}%'
+                          : '—',
+                      'Confidence',
+                      isDark,
+                    ),
                 ],
               ),
             ],
@@ -928,13 +1119,7 @@ class _TriageScreenState extends State<TriageScreen> {
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1F1F1F) : const Color(0xFFF5F5F7),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isDark ? Colors.white10 : Colors.grey.shade200,
-            ),
-          ),
+          decoration: FeliVetUi.cardDecoration(context),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -947,78 +1132,200 @@ class _TriageScreenState extends State<TriageScreen> {
                   color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                 ),
               ),
+              const SizedBox(height: 4),
+              Text(
+                'Tracks your cat\'s health score over time based on scan results. Higher scores indicate more urgency.',
+                style: TextStyle(
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  fontSize: 11.5,
+                  height: 1.35,
+                ),
+              ),
               const SizedBox(height: 10),
               if (trendSpots.length < 2)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Text(
-                    'Track trends here after a few more scans',
-                    style: TextStyle(
-                      color: isDark
-                          ? Colors.grey.shade400
-                          : Colors.grey.shade600,
-                      fontSize: 13,
-                      height: 1.4,
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: CustomPaint(
+                    foregroundPainter: DashedBorderPainter(
+                      color: isDark ? Colors.white24 : Colors.grey.shade300,
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.show_chart,
+                          size: 30,
+                          color: FeliVetUi.mutedLight,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Your scan trend will appear here after your first analysis',
+                          textAlign: TextAlign.center,
+                          style: FeliVetUi.muted(context),
+                        ),
+                      ],
                     ),
                   ),
                 )
               else
                 SizedBox(
-                  height: 120,
-                  child: LineChart(
-                    LineChartData(
-                      gridData: FlGridData(
-                        show: true,
-                        drawHorizontalLine: true,
-                        drawVerticalLine: false,
-                        horizontalInterval: 1,
-                        getDrawingHorizontalLine: (value) => FlLine(
-                          color: isDark
-                              ? Colors.white.withValues(alpha: 0.08)
-                              : Colors.grey.shade300,
-                          strokeWidth: 1,
-                        ),
-                      ),
-                      borderData: FlBorderData(show: false),
-                      titlesData: FlTitlesData(show: false),
-                      lineBarsData: [
-                        LineChartBarData(
-                          spots: trendSpots,
-                          isCurved: true,
-                          color: isDark
-                              ? Colors.deepPurple.shade300
-                              : Colors.deepPurple,
-                          barWidth: 3,
-                          dotData: FlDotData(
-                            show: true,
-                            getDotPainter: (spot, percent, barData, index) =>
-                                FlDotCirclePainter(
-                                  radius: 3.5,
-                                  color: isDark
-                                      ? Colors.white
-                                      : Colors.deepPurple,
-                                  strokeWidth: 1.5,
-                                  strokeColor: isDark
-                                      ? Colors.deepPurple.shade300
-                                      : Colors.deepPurple,
+                  height: 108,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) => Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        LineChart(
+                          LineChartData(
+                            gridData: FlGridData(
+                              show: true,
+                              drawHorizontalLine: true,
+                              drawVerticalLine: false,
+                              horizontalInterval: 1,
+                              getDrawingHorizontalLine: (value) => FlLine(
+                                color: isDark
+                                    ? Colors.white.withValues(alpha: 0.08)
+                                    : Colors.grey.shade300,
+                                strokeWidth: 1,
+                              ),
+                            ),
+                            borderData: FlBorderData(show: false),
+                            titlesData: FlTitlesData(
+                              show: true,
+                              topTitles: const AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
+                              leftTitles: const AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
+                              rightTitles: const AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  reservedSize: 22,
+                                  getTitlesWidget: (value, meta) {
+                                    final index = value.round();
+                                    if (index < 0 ||
+                                        index >= historyForTrend.length) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    final date =
+                                        historyForTrend[index].timestamp;
+                                    return SideTitleWidget(
+                                      axisSide: meta.axisSide,
+                                      child: Text(
+                                        '${date.month}/${date.day}',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: isDark
+                                              ? Colors.grey.shade400
+                                              : Colors.grey.shade600,
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
-                          ),
-                          belowBarData: BarAreaData(
-                            show: true,
-                            color:
-                                (isDark
-                                        ? Colors.deepPurple.shade300
-                                        : Colors.deepPurple)
-                                    .withValues(alpha: 0.16),
+                              ),
+                            ),
+                            lineBarsData: [
+                              LineChartBarData(
+                                spots: trendSpots,
+                                isCurved: true,
+                                color: isDark
+                                    ? Colors.deepPurple.shade300
+                                    : Colors.deepPurple,
+                                barWidth: 3,
+                                dotData: FlDotData(
+                                  show: true,
+                                  getDotPainter:
+                                      (spot, percent, barData, index) {
+                                        final urgencyColor =
+                                            historyForTrend[index]
+                                                .urgency
+                                                .color;
+                                        return FlDotCirclePainter(
+                                          radius: 4,
+                                          color: urgencyColor,
+                                          strokeWidth: 1.5,
+                                          strokeColor: isDark
+                                              ? Colors.white
+                                              : Colors.black26,
+                                        );
+                                      },
+                                ),
+                                belowBarData: BarAreaData(
+                                  show: true,
+                                  color:
+                                      (isDark
+                                              ? Colors.deepPurple.shade300
+                                              : Colors.deepPurple)
+                                          .withValues(alpha: 0.16),
+                                ),
+                              ),
+                            ],
+                            minY: 0.8,
+                            maxY: 3.2,
+                            lineTouchData: LineTouchData(enabled: false),
                           ),
                         ),
+                        ...List.generate(trendSpots.length, (index) {
+                          final spot = trendSpots[index];
+                          final horizontalRatio =
+                              index / (trendSpots.length - 1);
+                          final verticalRatio = 1 - ((spot.y - 0.8) / 2.4);
+                          final score =
+                              switch (historyForTrend[index].urgency) {
+                                UrgencyLevel.high => 3,
+                                UrgencyLevel.moderate => 2,
+                                UrgencyLevel.stable => 1,
+                              };
+                          return Positioned(
+                            left: (constraints.maxWidth - 18) * horizontalRatio,
+                            top: (120 * verticalRatio).clamp(0.0, 100.0),
+                            child: Text(
+                              '$score',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: isDark
+                                    ? Colors.white
+                                    : Colors.deepPurple,
+                              ),
+                            ),
+                          );
+                        }),
                       ],
-                      minY: 0.8,
-                      maxY: 3.2,
-                      lineTouchData: LineTouchData(enabled: false),
                     ),
                   ),
                 ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _trendLegendItem(
+                    score: '1',
+                    label: 'Stable',
+                    color: UrgencyLevel.stable.color,
+                    isDark: isDark,
+                  ),
+                  _trendLegendItem(
+                    score: '2',
+                    label: 'Moderate',
+                    color: UrgencyLevel.moderate.color,
+                    isDark: isDark,
+                  ),
+                  _trendLegendItem(
+                    score: '3',
+                    label: 'High',
+                    color: UrgencyLevel.high.color,
+                    isDark: isDark,
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -1096,6 +1403,33 @@ class _TriageScreenState extends State<TriageScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _trendLegendItem({
+    required String score,
+    required String label,
+    required Color color,
+    required bool isDark,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 9,
+          height: 9,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          '$score $label',
+          style: TextStyle(
+            color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 
@@ -1211,34 +1545,70 @@ class _TriageScreenState extends State<TriageScreen> {
                     ),
                   ],
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: _image == null
-                      ? Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.pets,
-                              size: 60,
-                              color: isDark
-                                  ? Colors.grey.shade600
-                                  : Colors.grey.shade300,
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              'Upload a photo to begin',
-                              style: TextStyle(
-                                color: isDark
-                                    ? Colors.grey.shade500
-                                    : Colors.grey.shade600,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                letterSpacing: -0.2,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: _previewImage == null
+                            ? SizedBox.expand(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.pets,
+                                      size: 60,
+                                      color: isDark
+                                          ? Colors.grey.shade600
+                                          : Colors.grey.shade300,
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      'Upload a photo to begin',
+                                      style: TextStyle(
+                                        color: isDark
+                                            ? Colors.grey.shade500
+                                            : Colors.grey.shade600,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                        letterSpacing: -0.2,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : Image.file(
+                                _previewImage!,
+                                width: double.infinity,
+                                height: double.infinity,
+                                fit: BoxFit.cover,
+                                cacheWidth: 900,
+                                filterQuality: FilterQuality.low,
                               ),
-                            ),
-                          ],
-                        )
-                      : Image.file(_image!, fit: BoxFit.cover),
+                      ),
+                    ),
+                    if (_image != null)
+                      Positioned(
+                        top: 10,
+                        right: 10,
+                        child: Material(
+                          color: Colors.black.withValues(alpha: 0.58),
+                          shape: const CircleBorder(),
+                          child: IconButton(
+                            tooltip: 'Remove selected photo',
+                            icon: const Icon(Icons.close, color: Colors.white),
+                            onPressed: () {
+                              AppSounds.playTap();
+                              setState(() {
+                                _image = null;
+                                _hideLatestImage = true;
+                                _imageQualityMessage = null;
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
               const SizedBox(height: 20),
@@ -1247,8 +1617,8 @@ class _TriageScreenState extends State<TriageScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -1259,7 +1629,8 @@ class _TriageScreenState extends State<TriageScreen> {
                               : Colors.grey.shade300,
                           width: 2,
                         ),
-                        foregroundColor: isDark ? Colors.white : Colors.black87,
+                        foregroundColor: Colors.white,
+                        backgroundColor: Colors.deepPurple,
                       ),
                       onPressed: () {
                         AppSounds.playTap();
@@ -1312,44 +1683,62 @@ class _TriageScreenState extends State<TriageScreen> {
               const SizedBox(height: 10),
               Text(
                 'Systemic Symptoms',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white : Colors.black87,
-                  letterSpacing: -0.3,
-                ),
+                style: FeliVetUi.heading(context, size: 22),
               ),
               const SizedBox(height: 6),
               Text(
                 'Check any symptoms your cat is currently showing.',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                  height: 1.4,
-                ),
+                style: FeliVetUi.muted(context, size: 14).copyWith(height: 1.4),
               ),
               const SizedBox(height: 15),
-              _buildSymptomOption(
-                title: 'Vomiting',
-                subtitle: 'Frequent throwing up or dry heaving',
-                value: _isVomiting,
-                onChanged: (v) => setState(() => _isVomiting = v!),
-                isDark: isDark,
-              ),
-              _buildSymptomOption(
-                title: 'Lethargy',
-                subtitle: 'Unusually tired, sleepy, or unresponsive',
-                value: _isLethargic,
-                onChanged: (v) => setState(() => _isLethargic = v!),
-                isDark: isDark,
-              ),
-              _buildSymptomOption(
-                title: 'Loss of Appetite',
-                subtitle: 'Ignoring food or eating very little',
-                value: _lostAppetite,
-                onChanged: (v) => setState(() => _lostAppetite = v!),
-                isDark: isDark,
+              Theme(
+                data: Theme.of(
+                  context,
+                ).copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  tilePadding: const EdgeInsets.symmetric(horizontal: 4),
+                  childrenPadding: EdgeInsets.zero,
+                  title: Text(
+                    _symptomCount == 0
+                        ? 'Select symptoms'
+                        : '$_symptomCount symptom${_symptomCount == 1 ? '' : 's'} selected',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Tap to choose from the symptom checklist',
+                    style: TextStyle(
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : Colors.grey.shade600,
+                    ),
+                  ),
+                  children: [
+                    _buildSymptomOption(
+                      title: 'Vomiting',
+                      subtitle: 'Frequent throwing up or dry heaving',
+                      value: _isVomiting,
+                      onChanged: (v) => setState(() => _isVomiting = v!),
+                      isDark: isDark,
+                    ),
+                    _buildSymptomOption(
+                      title: 'Lethargy',
+                      subtitle: 'Unusually tired, sleepy, or unresponsive',
+                      value: _isLethargic,
+                      onChanged: (v) => setState(() => _isLethargic = v!),
+                      isDark: isDark,
+                    ),
+                    _buildSymptomOption(
+                      title: 'Loss of Appetite',
+                      subtitle: 'Ignoring food or eating very little',
+                      value: _lostAppetite,
+                      onChanged: (v) => setState(() => _lostAppetite = v!),
+                      isDark: isDark,
+                    ),
+                  ],
+                ),
               ),
               if (hasSymptoms) ...[
                 const SizedBox(height: 10),
@@ -1456,16 +1845,17 @@ class _TriageScreenState extends State<TriageScreen> {
 
         return Scaffold(
           appBar: AppBar(
+            toolbarHeight: 52,
             title: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.pets, size: 26),
-                const SizedBox(width: 10),
+                const Icon(Icons.pets, size: 23),
+                const SizedBox(width: 7),
                 const Text(
                   'FeliVet Insight',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 7),
                 InkWell(
                   onTap: () async {
                     final profiles = [..._profiles];
@@ -1518,14 +1908,9 @@ class _TriageScreenState extends State<TriageScreen> {
                                           profile.id ==
                                           (_activeProfile?.id ?? '');
                                       return ListTile(
-                                        leading: CircleAvatar(
-                                          backgroundColor:
-                                              Colors.deepPurple.shade100,
-                                          child: Text(
-                                            profile.name
-                                                .substring(0, 1)
-                                                .toUpperCase(),
-                                          ),
+                                        leading: _buildCatAvatar(
+                                          profile,
+                                          radius: 20,
                                         ),
                                         title: Text(profile.name),
                                         subtitle: profile.breed != null
@@ -1569,25 +1954,28 @@ class _TriageScreenState extends State<TriageScreen> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
+                      color: Colors.white.withValues(alpha: 0.16),
                       borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.45),
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        CircleAvatar(
-                          radius: 10,
-                          backgroundColor: Colors.white.withValues(alpha: 0.95),
-                          child: Text(
-                            (_activeProfile?.name ?? 'My Cat')
-                                .substring(0, 1)
-                                .toUpperCase(),
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: Colors.deepPurple,
-                            ),
-                          ),
-                        ),
+                        _activeProfile == null
+                            ? const CircleAvatar(
+                                radius: 10,
+                                backgroundColor: Colors.white,
+                                child: Text(
+                                  'M',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.deepPurple,
+                                  ),
+                                ),
+                              )
+                            : _buildCatAvatar(_activeProfile!, radius: 10),
                         const SizedBox(width: 6),
                         Text(
                           _activeProfile?.name ?? 'My Cat',
@@ -1596,6 +1984,8 @@ class _TriageScreenState extends State<TriageScreen> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+                        const SizedBox(width: 2),
+                        const Icon(Icons.keyboard_arrow_down, size: 18),
                       ],
                     ),
                   ),
@@ -1661,6 +2051,7 @@ class _TriageScreenState extends State<TriageScreen> {
     return ValueListenableBuilder<bool>(
       valueListenable: isDarkModeNotifier,
       builder: (context, isDark, child) {
+        final reportHistory = _activeCatHistory;
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20.0),
           child: Column(
@@ -1746,12 +2137,7 @@ class _TriageScreenState extends State<TriageScreen> {
                         ),
                       ),
                       child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.deepPurple.shade100,
-                          child: Text(
-                            profile.name.substring(0, 1).toUpperCase(),
-                          ),
-                        ),
+                        leading: _buildCatAvatar(profile, radius: 20),
                         title: Text(profile.name),
                         subtitle: profile.breed != null
                             ? Text(profile.breed!)
@@ -1818,11 +2204,7 @@ class _TriageScreenState extends State<TriageScreen> {
                             children: [
                               Text(
                                 'Display Theme',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark ? Colors.white : Colors.black87,
-                                ),
+                                style: FeliVetUi.heading(context, size: 18),
                               ),
                               const SizedBox(height: 4),
                               Text(
@@ -1831,7 +2213,9 @@ class _TriageScreenState extends State<TriageScreen> {
                                     : 'Light mode enabled',
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: Colors.grey.shade600,
+                                  color: isDark
+                                      ? FeliVetUi.mutedDark
+                                      : FeliVetUi.mutedLight,
                                 ),
                               ),
                             ],
@@ -1901,16 +2285,12 @@ class _TriageScreenState extends State<TriageScreen> {
                         const SizedBox(width: 12),
                         Text(
                           'Report History',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black87,
-                          ),
+                          style: FeliVetUi.heading(context, size: 18),
                         ),
                       ],
                     ),
                     const SizedBox(height: 14),
-                    if (_history.isEmpty)
+                    if (reportHistory.isEmpty)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 20),
                         child: Center(
@@ -1935,7 +2315,7 @@ class _TriageScreenState extends State<TriageScreen> {
                       )
                     else
                       Column(
-                        children: _history.map((result) {
+                        children: reportHistory.map((result) {
                           final fileName =
                               '${result.detectedDisease ?? "Analysis"}_${result.timestamp.day}-${result.timestamp.month}-${result.timestamp.year}.pdf';
                           return Padding(
@@ -1984,8 +2364,15 @@ class _TriageScreenState extends State<TriageScreen> {
                                     ),
                                   ),
                                   IconButton(
+                                    tooltip:
+                                        _pdfAvailability[_pdfKey(result)] ==
+                                            true
+                                        ? 'Open PDF'
+                                        : 'Download PDF',
                                     icon: Icon(
-                                      Icons.download_outlined,
+                                      _pdfAvailability[_pdfKey(result)] == true
+                                          ? Icons.open_in_new_outlined
+                                          : Icons.download_outlined,
                                       color: isDark
                                           ? Colors.white
                                           : Colors.black87,
@@ -1994,17 +2381,29 @@ class _TriageScreenState extends State<TriageScreen> {
                                       AppSounds.playTap();
                                       try {
                                         final file =
-                                            await PdfReportService.generateScanReport(
+                                            await PdfReportService.reportFileFor(
                                               result,
                                             );
+                                        if (!await file.exists()) {
+                                          await PdfReportService.generateScanReport(
+                                            result,
+                                          );
+                                        }
+                                        if (!mounted) return;
+                                        setState(
+                                          () =>
+                                              _pdfAvailability[_pdfKey(
+                                                    result,
+                                                  )] =
+                                                  true,
+                                        );
+                                        await OpenFilex.open(file.path);
                                         if (!context.mounted) return;
                                         ScaffoldMessenger.of(
                                           context,
                                         ).showSnackBar(
                                           SnackBar(
-                                            content: Text(
-                                              'Report saved to ${file.path}',
-                                            ),
+                                            content: Text('PDF ready to open'),
                                           ),
                                         );
                                       } catch (e) {

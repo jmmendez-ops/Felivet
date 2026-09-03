@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import '../core/app_state.dart';
 import '../core/sound_utils.dart';
+import '../core/ui_tokens.dart';
 import '../models/triage_models.dart';
 import '../services/pdf_report_service.dart';
 import 'disease_info_screen.dart';
@@ -185,18 +186,9 @@ class ResultScreen extends StatelessWidget {
                     Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(18),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).cardColor,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(
-                                  alpha: isDark ? 0.35 : 0.06,
-                                ),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
+                          decoration: FeliVetUi.cardDecoration(
+                            context,
+                            elevated: true,
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -290,6 +282,8 @@ class ResultScreen extends StatelessWidget {
                                 child: Image.file(
                                   result.image!,
                                   fit: BoxFit.cover,
+                                  cacheWidth: 900,
+                                  filterQuality: FilterQuality.low,
                                   errorBuilder: (_, _, _) => Container(
                                     color: Theme.of(context).cardColor,
                                     child: Center(

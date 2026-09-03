@@ -35,7 +35,7 @@ class HistoryStorage {
     }
   }
 
-  static Future<void> save(List<TriageResult> history) async {
+  static Future<List<TriageResult>> save(List<TriageResult> history) async {
     final prefs = await SharedPreferences.getInstance();
     final persistedResults = <TriageResult>[];
     final imageDir = await _historyImageDirectory();
@@ -49,6 +49,7 @@ class HistoryStorage {
       persistedResults.map((result) => result.toJson()).toList(),
     );
     await prefs.setString(_key, encoded);
+    return persistedResults;
   }
 
   static Future<void> deleteEntry(TriageResult entry) async {
@@ -87,6 +88,10 @@ class HistoryStorage {
   ) async {
     if (image == null || !image.existsSync()) {
       return null;
+    }
+
+    if (image.path.startsWith(imageDir.path)) {
+      return image;
     }
 
     final extension = image.path.split('.').lastOrNull ?? 'png';

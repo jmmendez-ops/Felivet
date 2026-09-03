@@ -26,15 +26,15 @@ String buildDailyCareTip({
   DateTime? date,
 }) {
   if (scanCount == 0) {
-    return 'Daily care tip: start with a photo and a symptom check so you can build a simple care timeline for your cat.';
+    return 'Care tip: Start with a photo and symptom check to build your cat\'s care timeline.';
   }
   if (latestUrgency == UrgencyLevel.high) {
-    return 'Daily care tip: a high-urgency result means your cat should be watched closely. Keep food, water, and a quiet rest area ready, and contact your vet promptly if symptoms worsen.';
+    return 'Care tip: Monitor closely and contact your vet promptly if symptoms worsen.';
   }
   if (latestUrgency == UrgencyLevel.moderate) {
-    return 'Daily care tip: a moderate-urgency result deserves close monitoring. Keep your cat comfortable and watch for worsening appetite, lethargy, or vomiting.';
+    return 'Care tip: Monitor appetite, lethargy, vomiting, and any changes.';
   }
-  return 'Daily care tip: a stable result still benefits from steady observation. Keep routines calm, check the skin area regularly, and seek care if anything changes.';
+  return 'Care tip: Keep routines calm and check the skin area regularly.';
 }
 
 TriageResult runExpertSystem({
@@ -105,7 +105,7 @@ TriageResult runExpertSystem({
         symptomCount: 0,
         isAmbiguous: false,
         reasoning:
-            'The model did not find sufficient visual evidence of any of the supported skin conditions, and no systemic symptoms were reported. This does not confirm the cat is completely healthy — it only reflects the absence of detectable evidence for this model\'s specific disease classes.',
+            'The model did not find sufficient visual evidence of any of the supported skin conditions, and no systemic symptoms were reported. This does not confirm the cat is completely healthy. It only reflects the absence of detectable evidence for this model\'s specific disease classes.',
         recommendation:
             'NO SUPPORTED SKIN DISEASE DETECTED. Continue routine monitoring and schedule regular vet check-ups.',
         timestamp: DateTime.now(),
