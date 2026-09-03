@@ -8,7 +8,7 @@ class DiseaseInfoScreen extends StatelessWidget {
   const DiseaseInfoScreen({super.key, required this.diseaseName});
 
   static const Map<String, _DiseaseInfo> _infoByDisease = {
-    'Scabies': _DiseaseInfo(
+    'scabies': _DiseaseInfo(
       description:
           'Scabies is a highly contagious skin infestation caused by mites. It often leads to intense itching, crusting, and hair loss.',
       symptoms: [
@@ -32,7 +32,7 @@ class DiseaseInfoScreen extends StatelessWidget {
         'Other pets in the household should also be checked.',
       ],
     ),
-    'ringworms': _DiseaseInfo(
+    'ringworm': _DiseaseInfo(
       description:
           'Ringworm is a fungal infection that can affect the skin, hair, and nails. It often appears as circular patches with hair loss.',
       symptoms: [
@@ -55,7 +55,7 @@ class DiseaseInfoScreen extends StatelessWidget {
         'Follow-up checks help ensure the infection clears fully.',
       ],
     ),
-    'Flee Allergy': _DiseaseInfo(
+    'flea allergy': _DiseaseInfo(
       description:
           'Flea allergy is an overreaction to flea saliva. Even a few fleas can trigger severe itching and skin irritation.',
       symptoms: [
@@ -87,7 +87,9 @@ class DiseaseInfoScreen extends StatelessWidget {
     return ValueListenableBuilder<bool>(
       valueListenable: isDarkModeNotifier,
       builder: (context, isDark, child) {
-        final info = _infoByDisease[diseaseName] ?? _infoByDisease['Scabies']!;
+        final normalizedDisease = diseaseName.toLowerCase();
+        final info =
+            _infoByDisease[normalizedDisease] ?? _infoByDisease['scabies']!;
         final color = Colors.deepPurple;
 
         return Scaffold(

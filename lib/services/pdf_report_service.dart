@@ -6,7 +6,24 @@ import 'package:pdf/widgets.dart' as pw;
 import '../models/triage_models.dart';
 
 class PdfReportService {
+  static Future<File> reportFileFor(TriageResult result) async {
+    final directory = await getApplicationDocumentsDirectory();
+    final stamp = result.timestamp.toLocal();
+    final condition = (result.detectedDisease ?? 'analysis')
+        .replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_')
+        .replaceAll(RegExp(r'_+'), '_')
+        .replaceAll(RegExp(r'^_|_$'), '');
+    final filePath =
+        '${directory.path}/felivet_scan_report_${condition}_${stamp.year.toString().padLeft(4, '0')}-${stamp.month.toString().padLeft(2, '0')}-${stamp.day.toString().padLeft(2, '0')}_${stamp.hour.toString().padLeft(2, '0')}${stamp.minute.toString().padLeft(2, '0')}.pdf';
+    return File(filePath);
+  }
+
   static Future<File> generateScanReport(TriageResult result) async {
+    final file = await reportFileFor(result);
+    if (await file.exists()) {
+      return file;
+    }
+
     final pdf = pw.Document();
 
     pdf.addPage(
@@ -51,15 +68,6 @@ class PdfReportService {
       ),
     );
 
-    final directory = await getApplicationDocumentsDirectory();
-    final stamp = result.timestamp.toLocal();
-    final condition = (result.detectedDisease ?? 'analysis')
-        .replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_')
-        .replaceAll(RegExp(r'_+'), '_')
-        .replaceAll(RegExp(r'^_|_$'), '');
-    final filePath =
-        '${directory.path}/felivet_scan_report_${condition}_${stamp.year.toString().padLeft(4, '0')}-${stamp.month.toString().padLeft(2, '0')}-${stamp.day.toString().padLeft(2, '0')}_${stamp.hour.toString().padLeft(2, '0')}${stamp.minute.toString().padLeft(2, '0')}.pdf';
-    final file = File(filePath);
     await file.writeAsBytes(await pdf.save());
     return file;
   }

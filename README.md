@@ -32,7 +32,7 @@ There's currently no app store listing or standalone APK — the app runs by bui
 - Android Studio / Xcode (for emulators) or a physical Android/iOS device
 - Windows only: Developer Mode enabled (`start ms-settings:developers`) — required for plugin symlink support
 - Trained YOLOv8 `.tflite` model + labels file (already bundled under `assets/`):
-  - `assets/CatDisease.tflite`
+   - `assets/best.tflite`
   - `assets/labels.txt`
 
 **Setup**
@@ -59,6 +59,20 @@ There's currently no app store listing or standalone APK — the app runs by bui
    flutter run
    ```
 6. Grant camera/gallery permissions when prompted on first launch.
+
+### Native YOLO decoder patch note
+
+This repository vendors a local copy of the `flutter_vision` plugin at `packages/flutter_vision` so the Android YOLO decoder survives `flutter clean`, `flutter pub get`, and future repo clones.
+
+The vendored plugin includes the compatibility fix for the YOLOv8/YOLO11 raw detection output format used by Ultralytics TFLite exports, where each detection row is decoded as:
+
+```text
+[x, y, w, h, class_0, class_1, class_2]
+```
+
+instead of the older YOLOv5-style format that also included a separate objectness score.
+
+This local fork is intentionally tracked in the repo so the patch is not lost when the pub cache is cleared or dependencies are refreshed.
 
 ## Contributor Expectations
 

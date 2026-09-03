@@ -325,8 +325,8 @@ class _TriageScreenState extends State<TriageScreen> {
       _vision ??= FlutterVision();
       await _vision!.loadYoloModel(
         labels: 'assets/labels.txt',
-        modelPath: 'assets/CatDisease.tflite',
-        modelVersion: 'yolov8',
+        modelPath: 'assets/best.tflite',
+        modelVersion: 'yolov11',
         numThreads: 2,
         useGpu: false,
       );

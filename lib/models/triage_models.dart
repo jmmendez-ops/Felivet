@@ -89,6 +89,8 @@ class DiseaseEvidence {
     required this.avgConfidence,
     required this.detectionCount,
   });
+
+  double get evidenceScore => bestConfidence * 0.65 + avgConfidence * 0.35;
 }
 
 class TriageResult {
