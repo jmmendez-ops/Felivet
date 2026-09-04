@@ -153,6 +153,7 @@ public class FlutterVisionPlugin implements FlutterPlugin, MethodCallHandler {
             String modelPath = getStringArgument(args, "modelPath");
             String labelPath = getStringArgument(args, "labels");
             String version = getStringArgument(args, "modelVersion");
+            String coordinateFormat = getStringArgument(args, "coordinateFormat", "normalized");
             
             final boolean isAsset = getBooleanArgument(args, "isAsset", false);
             final int numThreads = getIntArgument(args, "numThreads", 4);
@@ -169,7 +170,7 @@ public class FlutterVisionPlugin implements FlutterPlugin, MethodCallHandler {
             
             // Create appropriate model instance
             yolo_model = createYoloModel(version, context, resolvedModelPath, isAsset, 
-                    numThreads, quantization, useGpu, resolvedLabelPath, rotation);
+                    numThreads, quantization, useGpu, resolvedLabelPath, rotation, coordinateFormat);
             
             // Initialize the model
             yolo_model.initialize_model();
@@ -185,7 +186,7 @@ public class FlutterVisionPlugin implements FlutterPlugin, MethodCallHandler {
 
     private Yolo createYoloModel(String version, Context context, String modelPath, boolean isAsset,
                                 int numThreads, boolean quantization, boolean useGpu, 
-                                String labelPath, int rotation) throws Exception {
+                                String labelPath, int rotation, String coordinateFormat) throws Exception {
         switch (version.toLowerCase()) {
             case "yolov5":
                 return new Yolov5(context, modelPath, isAsset, numThreads, quantization, useGpu, labelPath, rotation);
@@ -198,7 +199,8 @@ public class FlutterVisionPlugin implements FlutterPlugin, MethodCallHandler {
                 
             case "yolo11":
             case "yolov11":
-                return new Yolo11(context, modelPath, isAsset, numThreads, quantization, useGpu, labelPath, rotation);
+                return new Yolo11(context, modelPath, isAsset, numThreads, quantization, useGpu,
+                        labelPath, rotation, coordinateFormat);
                 
             default:
                 throw new IllegalArgumentException("Unsupported model version: " + version + 
@@ -280,6 +282,11 @@ public class FlutterVisionPlugin implements FlutterPlugin, MethodCallHandler {
             throw new IllegalArgumentException("Missing required argument: " + key);
         }
         return value.toString();
+    }
+
+    private String getStringArgument(Map<String, Object> args, String key, String defaultValue) {
+        Object value = args.get(key);
+        return value != null ? value.toString() : defaultValue;
     }
 
     private boolean getBooleanArgument(Map<String, Object> args, String key, boolean defaultValue) {

@@ -46,6 +46,7 @@ abstract class BaseFlutterVision {
     required String modelPath,
     required String labels,
     required String modelVersion,
+    String? coordinateFormat,
     bool? quantization,
     int? numThreads,
     bool? useGpu,

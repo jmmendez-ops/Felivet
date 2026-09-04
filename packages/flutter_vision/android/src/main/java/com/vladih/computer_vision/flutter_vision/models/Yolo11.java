@@ -18,6 +18,8 @@ import java.util.Vector;
  */
 public class Yolo11 extends Yolo {
     private static final String TAG = "Yolo11";
+    // best.tflite was observed to emit normalized xywh values for its 640x640 input.
+    private final String coordinate_format;
     
     public Yolo11(Context context,
                   String model_path,
@@ -26,8 +28,13 @@ public class Yolo11 extends Yolo {
                   boolean quantization,
                   boolean use_gpu,
                   String label_path,
-                  int rotation) {
+                  int rotation,
+                  String coordinate_format) {
         super(context, model_path, is_assets, num_threads, quantization, use_gpu, label_path, rotation);
+        if (!"normalized".equals(coordinate_format) && !"pixels".equals(coordinate_format)) {
+            throw new IllegalArgumentException("Unsupported YOLO11 coordinate format: " + coordinate_format);
+        }
+        this.coordinate_format = coordinate_format;
     }
 
     @Override
@@ -84,17 +91,22 @@ public class Yolo11 extends Yolo {
             
             // Process each detection
             for (int i = 0; i < total_detections; i++) {
-                // Extract box coordinates (normalized)
                 float center_x = model_outputs[0][0][i];
                 float center_y = model_outputs[0][1][i];
                 float width = model_outputs[0][2][i];
                 float height = model_outputs[0][3][i];
+                if ("normalized".equals(coordinate_format)) {
+                    center_x *= input_width;
+                    center_y *= input_height;
+                    width *= input_width;
+                    height *= input_height;
+                }
                 
                 // Convert to pixel coordinates and xyxy format
-                float x1 = (center_x - width / 2f) * input_width;
-                float y1 = (center_y - height / 2f) * input_height;
-                float x2 = (center_x + width / 2f) * input_width;
-                float y2 = (center_y + height / 2f) * input_height;
+                float x1 = center_x - width / 2f;
+                float y1 = center_y - height / 2f;
+                float x2 = center_x + width / 2f;
+                float y2 = center_y + height / 2f;
                 
                 // Find best class and confidence
                 int best_class_index = class_start_index;

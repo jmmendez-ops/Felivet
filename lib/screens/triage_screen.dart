@@ -489,6 +489,7 @@ class _TriageScreenState extends State<TriageScreen> {
         labels: 'assets/labels.txt',
         modelPath: 'assets/best.tflite',
         modelVersion: 'yolov11',
+        coordinateFormat: 'normalized',
         numThreads: 2,
         useGpu: false,
       );
@@ -714,6 +715,7 @@ class _TriageScreenState extends State<TriageScreen> {
           imageWidth: imageInfo.width,
           iouThreshold: DetectionConfig.iouThreshold,
           confThreshold: DetectionConfig.minDetectionConfidence,
+          classThreshold: DetectionConfig.minDetectionConfidence,
         );
 
         final Map<String, List<double>> confidencesPerDisease = {
@@ -1649,8 +1651,8 @@ class _TriageScreenState extends State<TriageScreen> {
                   ),
                   const SizedBox(width: 15),
                   Expanded(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -1661,7 +1663,8 @@ class _TriageScreenState extends State<TriageScreen> {
                               : Colors.grey.shade300,
                           width: 2,
                         ),
-                        foregroundColor: isDark ? Colors.white : Colors.black87,
+                        foregroundColor: Colors.white,
+                        backgroundColor: Colors.deepPurple,
                       ),
                       onPressed: () {
                         AppSounds.playTap();
