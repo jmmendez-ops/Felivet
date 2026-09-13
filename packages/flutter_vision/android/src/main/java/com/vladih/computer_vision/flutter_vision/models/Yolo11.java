@@ -78,7 +78,7 @@ public class Yolo11 extends Yolo {
 
     /**
      * YOLO11 specific box filtering with optimized processing
-     * Format: [x, y, w, h, class1, class2, ...] (no objectness score)
+     * Format: [x, y, w, h, class1, class2, ...] (no objectness scoreflutter devices)
      */
     protected List<float[]> filter_box_v11(float[][][] model_outputs, float iou_threshold,
                                            float conf_threshold, float class_threshold, 

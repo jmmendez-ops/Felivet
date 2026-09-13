@@ -1,7 +1,7 @@
 import '../models/triage_models.dart';
 
 class DetectionConfig {
-  static const double minDetectionConfidence = 0.40;
+  static const double minDetectionConfidence = 0.25;
   static const double lowQualityConfidenceCap = 0.59;
   static const double iouThreshold = 0.45;
 

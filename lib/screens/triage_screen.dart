@@ -566,10 +566,10 @@ class _TriageScreenState extends State<TriageScreen> {
       }
 
       final gray = img.grayscale(decoded);
-      final blurScore = _estimateBlur(gray);
+      final sharpnessScore = _estimateBlur(gray);
       final brightness = _estimateBrightness(gray);
       final issues = <String>[];
-      if (blurScore > 0.55) issues.add('blurry');
+      if (sharpnessScore < 0.08) issues.add('blurry');
       if (brightness < 0.22) issues.add('too dark');
 
       final bool isLowQuality = issues.isNotEmpty;
