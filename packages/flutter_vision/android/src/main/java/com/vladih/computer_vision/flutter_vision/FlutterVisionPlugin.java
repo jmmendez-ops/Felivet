@@ -409,6 +409,9 @@ public class FlutterVisionPlugin implements FlutterPlugin, MethodCallHandler {
                 Log.d(TAG, String.format("Detection completed: %d objects found", detections.size()));
                 result.success(detections);
                 
+            } catch (OutOfMemoryError e) {
+                Log.e(TAG, "Detection task ran out of memory", e);
+                result.error("DETECTION_OOM", "Image is too large to analyze", e);
             } catch (Exception e) {
                 Log.e(TAG, "Detection task failed", e);
                 result.error("DETECTION_ERROR", "Detection failed: " + e.getMessage(), e);

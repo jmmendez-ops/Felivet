@@ -55,7 +55,12 @@ class _SplashScreenState extends State<SplashScreen> {
               AnimatedOpacity(
                 duration: const Duration(milliseconds: 800),
                 opacity: _pawOpacity,
-                child: const Icon(Icons.pets, size: 90, color: Colors.white),
+                child: Image.asset(
+                  'assets/icon/icon.png',
+                  width: 110,
+                  height: 110,
+                  fit: BoxFit.contain,
+                ),
               ),
               const SizedBox(height: 20),
               AnimatedOpacity(

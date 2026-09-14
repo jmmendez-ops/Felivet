@@ -43,8 +43,24 @@ void main() {
 
       expect(spots.length, 2);
       expect(spots.first.x, 0);
-      expect(spots.first.y, 1.0);
+      expect(spots.first.y, 2.0);
       expect(spots.last.y, 3.0);
+    });
+
+    test('keeps every point while limiting crowded date labels', () {
+      expect(
+        [
+          shouldShowTrendDateLabel(0, 6),
+          shouldShowTrendDateLabel(1, 6),
+          shouldShowTrendDateLabel(2, 6),
+          shouldShowTrendDateLabel(3, 6),
+          shouldShowTrendDateLabel(4, 6),
+          shouldShowTrendDateLabel(5, 6),
+        ],
+        [true, false, true, false, true, true],
+      );
+      expect(shouldShowTrendDateLabel(0, 1), isTrue);
+      expect(shouldShowTrendDateLabel(1, 1), isFalse);
     });
 
     test('returns an empty list for too few scans', () {

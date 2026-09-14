@@ -38,24 +38,25 @@ List<FlSpot> buildTrendSpots(List<TriageResult> history) {
   final ordered = history.toList()
     ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
-  final normalized = ordered.map((entry) {
-    final value = switch (entry.urgency) {
+  final scores = ordered.map((entry) {
+    return switch (entry.urgency) {
       UrgencyLevel.high => 3.0,
       UrgencyLevel.moderate => 2.0,
       UrgencyLevel.stable => 1.0,
     };
-    return value;
   }).toList();
 
-  final maxValue = normalized.reduce((a, b) => a > b ? a : b);
-  final minValue = normalized.reduce((a, b) => a < b ? a : b);
-  final range = maxValue - minValue == 0 ? 1.0 : maxValue - minValue;
-
   return List.generate(ordered.length, (index) {
-    final value = normalized[index];
-    final adjusted = 1.0 + ((value - minValue) / range) * 2.0;
-    return FlSpot(index.toDouble(), adjusted);
+    return FlSpot(index.toDouble(), scores[index]);
   });
+}
+
+bool shouldShowTrendDateLabel(int index, int pointCount) {
+  if (index < 0 || index >= pointCount) return false;
+  if (pointCount <= 4) return true;
+
+  final interval = (pointCount + 1) ~/ 3;
+  return index == 0 || index == pointCount - 1 || index % interval == 0;
 }
 
 class _TriageScreenState extends State<TriageScreen> {
@@ -506,20 +507,40 @@ class _TriageScreenState extends State<TriageScreen> {
   }
 
   Future<void> _getImage(ImageSource source) async {
-    if (source == ImageSource.camera) {
-      final shouldContinue = await _showCameraTips();
-      if (!shouldContinue) return;
-    }
+    try {
+      if (source == ImageSource.camera) {
+        final shouldContinue = await _showCameraTips();
+        if (!shouldContinue) return;
+      }
 
-    final pickedFile = await _picker.pickImage(source: source);
-    if (pickedFile != null) {
+      final pickedFile = await _picker.pickImage(
+        source: source,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 85,
+      );
+      if (pickedFile == null) return;
+
       final newImage = File(pickedFile.path);
+      if (!await newImage.exists() || await newImage.length() == 0) {
+        throw StateError('The selected image was not written completely.');
+      }
+
+      if (!mounted) return;
       setState(() {
         _image = newImage;
         _hideLatestImage = false;
         _imageQualityMessage = null;
       });
       await _assessImageQuality(newImage);
+    } catch (error, stackTrace) {
+      debugPrint('Image capture failed: $error\n$stackTrace');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not load that image. Please try again.'),
+        ),
+      );
     }
   }
 
@@ -654,7 +675,40 @@ class _TriageScreenState extends State<TriageScreen> {
   int get _symptomCount =>
       [_isVomiting, _isLethargic, _lostAppetite].where((s) => s).length;
 
+  Future<({Uint8List bytes, int width, int height})> _prepareImageForInference(
+    File imageFile,
+  ) async {
+    final sourceBytes = await imageFile.readAsBytes();
+    final decoded = img.decodeImage(sourceBytes);
+    if (decoded == null) {
+      throw const FormatException('The image format could not be decoded.');
+    }
+
+    final oriented = img.bakeOrientation(decoded);
+    final longestSide = oriented.width > oriented.height
+        ? oriented.width
+        : oriented.height;
+    final prepared = longestSide > 1600
+        ? img.copyResize(
+            oriented,
+            width: oriented.width >= oriented.height
+                ? 1600
+                : (oriented.width * 1600 / oriented.height).round(),
+            height: oriented.height >= oriented.width
+                ? 1600
+                : (oriented.height * 1600 / oriented.width).round(),
+          )
+        : oriented;
+    final bytes = Uint8List.fromList(img.encodeJpg(prepared, quality: 85));
+    debugPrint(
+      'Prepared image for inference: ${prepared.width}x${prepared.height}, '
+      '${bytes.length} bytes',
+    );
+    return (bytes: bytes, width: prepared.width, height: prepared.height);
+  }
+
   Future<void> _runInference() async {
+    if (_isScanning) return;
     if (_image == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -678,13 +732,15 @@ class _TriageScreenState extends State<TriageScreen> {
       return;
     }
 
+    setState(() => _isScanning = true);
     final qualityCheck = await _assessImageQuality(_image!);
     final shouldProceed =
         !qualityCheck.isLowQuality ||
         await _confirmImageQualityBeforeAnalysis();
-    if (!shouldProceed || !mounted) return;
-
-    setState(() => _isScanning = true);
+    if (!shouldProceed || !mounted) {
+      if (mounted) setState(() => _isScanning = false);
+      return;
+    }
 
     try {
       final intake = await SymptomIntakeService.extractChecklistFromText(
@@ -706,13 +762,12 @@ class _TriageScreenState extends State<TriageScreen> {
 
       final List<DiseaseEvidence> evidenceList = [];
       if (_image != null && _isModelLoaded) {
-        final Uint8List bytes = await _image!.readAsBytes();
-        final imageInfo = await decodeImageFromList(bytes);
+        final prepared = await _prepareImageForInference(_image!);
 
         final List<dynamic> rawResults = await _vision!.yoloOnImage(
-          bytesList: bytes,
-          imageHeight: imageInfo.height,
-          imageWidth: imageInfo.width,
+          bytesList: prepared.bytes,
+          imageHeight: prepared.height,
+          imageWidth: prepared.width,
           iouThreshold: DetectionConfig.iouThreshold,
           confThreshold: DetectionConfig.minDetectionConfidence,
           classThreshold: DetectionConfig.minDetectionConfidence,
@@ -1022,7 +1077,9 @@ class _TriageScreenState extends State<TriageScreen> {
   Widget _buildQuickStats(bool isDark) {
     final activeHistory = _activeCatHistory;
     final latest = activeHistory.isNotEmpty ? activeHistory.first : null;
-    final latestLabel = latest == null ? 'No scan yet' : latest.urgency.label;
+    final latestLabel = latest == null
+        ? 'No scan yet'
+        : latest.detectedDisease ?? 'No detected condition';
     final urgencyColor = latest?.urgency.color ?? Colors.deepPurple;
     final tip = buildDailyCareTip(
       scanCount: activeHistory.length,
@@ -1103,15 +1160,15 @@ class _TriageScreenState extends State<TriageScreen> {
                     isDark,
                   ),
                   const SizedBox(width: 8),
-                  if (latest != null)
+                  if (latest?.confidence != null) ...[
+                    const SizedBox(width: 8),
                     _statChip(
                       Icons.verified_rounded,
-                      latest.confidence != null
-                          ? '${(latest.confidence! * 100).toStringAsFixed(0)}%'
-                          : '—',
+                      '${(latest!.confidence! * 100).toStringAsFixed(0)}%',
                       'Confidence',
                       isDark,
                     ),
+                  ],
                 ],
               ),
             ],
@@ -1175,132 +1232,99 @@ class _TriageScreenState extends State<TriageScreen> {
               else
                 SizedBox(
                   height: 108,
-                  child: LayoutBuilder(
-                    builder: (context, constraints) => Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        LineChart(
-                          LineChartData(
-                            gridData: FlGridData(
-                              show: true,
-                              drawHorizontalLine: true,
-                              drawVerticalLine: false,
-                              horizontalInterval: 1,
-                              getDrawingHorizontalLine: (value) => FlLine(
-                                color: isDark
-                                    ? Colors.white.withValues(alpha: 0.08)
-                                    : Colors.grey.shade300,
-                                strokeWidth: 1,
-                              ),
-                            ),
-                            borderData: FlBorderData(show: false),
-                            titlesData: FlTitlesData(
-                              show: true,
-                              topTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                              leftTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                              rightTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                              bottomTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: 22,
-                                  getTitlesWidget: (value, meta) {
-                                    final index = value.round();
-                                    if (index < 0 ||
-                                        index >= historyForTrend.length) {
-                                      return const SizedBox.shrink();
-                                    }
-                                    final date =
-                                        historyForTrend[index].timestamp;
-                                    return SideTitleWidget(
-                                      axisSide: meta.axisSide,
-                                      child: Text(
-                                        '${date.month}/${date.day}',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: isDark
-                                              ? Colors.grey.shade400
-                                              : Colors.grey.shade600,
-                                        ),
-                                      ),
-                                    );
-                                  },
+                  child: LineChart(
+                    LineChartData(
+                      gridData: FlGridData(
+                        show: true,
+                        drawHorizontalLine: true,
+                        drawVerticalLine: false,
+                        horizontalInterval: 1,
+                        getDrawingHorizontalLine: (value) => FlLine(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.08)
+                              : Colors.grey.shade300,
+                          strokeWidth: 1,
+                        ),
+                      ),
+                      borderData: FlBorderData(show: false),
+                      titlesData: FlTitlesData(
+                        show: true,
+                        topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        leftTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 22,
+                            getTitlesWidget: (value, meta) {
+                              final index = value.round();
+                              if (index < 0 ||
+                                  index >= historyForTrend.length ||
+                                  !shouldShowTrendDateLabel(
+                                    index,
+                                    historyForTrend.length,
+                                  )) {
+                                return const SizedBox.shrink();
+                              }
+                              final date = historyForTrend[index].timestamp;
+                              return SideTitleWidget(
+                                axisSide: meta.axisSide,
+                                child: Text(
+                                  '${date.month}/${date.day}',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: isDark
+                                        ? Colors.grey.shade400
+                                        : Colors.grey.shade600,
+                                  ),
                                 ),
-                              ),
-                            ),
-                            lineBarsData: [
-                              LineChartBarData(
-                                spots: trendSpots,
-                                isCurved: true,
-                                color: isDark
-                                    ? Colors.deepPurple.shade300
-                                    : Colors.deepPurple,
-                                barWidth: 3,
-                                dotData: FlDotData(
-                                  show: true,
-                                  getDotPainter:
-                                      (spot, percent, barData, index) {
-                                        final urgencyColor =
-                                            historyForTrend[index]
-                                                .urgency
-                                                .color;
-                                        return FlDotCirclePainter(
-                                          radius: 4,
-                                          color: urgencyColor,
-                                          strokeWidth: 1.5,
-                                          strokeColor: isDark
-                                              ? Colors.white
-                                              : Colors.black26,
-                                        );
-                                      },
-                                ),
-                                belowBarData: BarAreaData(
-                                  show: true,
-                                  color:
-                                      (isDark
-                                              ? Colors.deepPurple.shade300
-                                              : Colors.deepPurple)
-                                          .withValues(alpha: 0.16),
-                                ),
-                              ),
-                            ],
-                            minY: 0.8,
-                            maxY: 3.2,
-                            lineTouchData: LineTouchData(enabled: false),
+                              );
+                            },
                           ),
                         ),
-                        ...List.generate(trendSpots.length, (index) {
-                          final spot = trendSpots[index];
-                          final horizontalRatio =
-                              index / (trendSpots.length - 1);
-                          final verticalRatio = 1 - ((spot.y - 0.8) / 2.4);
-                          final score =
-                              switch (historyForTrend[index].urgency) {
-                                UrgencyLevel.high => 3,
-                                UrgencyLevel.moderate => 2,
-                                UrgencyLevel.stable => 1,
-                              };
-                          return Positioned(
-                            left: (constraints.maxWidth - 18) * horizontalRatio,
-                            top: (120 * verticalRatio).clamp(0.0, 100.0),
-                            child: Text(
-                              '$score',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: isDark
+                      ),
+                      lineBarsData: [
+                        LineChartBarData(
+                          spots: trendSpots,
+                          isCurved: true,
+                          color: isDark
+                              ? Colors.deepPurple.shade300
+                              : Colors.deepPurple,
+                          barWidth: 3,
+                          dotData: FlDotData(
+                            show: true,
+                            getDotPainter: (spot, percent, barData, index) {
+                              final urgencyColor =
+                                  historyForTrend[index].urgency.color;
+                              return FlDotCirclePainter(
+                                radius: 4,
+                                color: urgencyColor,
+                                strokeWidth: 1.5,
+                                strokeColor: isDark
                                     ? Colors.white
-                                    : Colors.deepPurple,
-                              ),
-                            ),
-                          );
-                        }),
+                                    : Colors.black26,
+                              );
+                            },
+                          ),
+                          belowBarData: BarAreaData(
+                            show: true,
+                            color:
+                                (isDark
+                                        ? Colors.deepPurple.shade300
+                                        : Colors.deepPurple)
+                                    .withValues(alpha: 0.16),
+                          ),
+                        ),
                       ],
+                      minY: 0.8,
+                      maxY: 3.2,
+                      lineTouchData: LineTouchData(enabled: false),
                     ),
                   ),
                 ),
