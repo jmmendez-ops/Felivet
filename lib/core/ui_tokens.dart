@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
 
 class FeliVetUi {
+  static const double spaceXs = 4;
+  static const double spaceSm = 8;
+  static const double spaceMd = 12;
+  static const double spaceLg = 16;
+  static const double spaceXl = 20;
   static const double cardRadius = 16;
+  static const double compactRadius = 12;
+  static const Color accent = Color(0xFF7C3AED);
+  static const Color accentDark = Color(0xFF9B5CFF);
   static const Color mutedLight = Color(0xFF6B7280);
   static const Color mutedDark = Color(0xFF9CA3AF);
+
+  static const EdgeInsets cardPadding = EdgeInsets.all(spaceLg);
 
   static BoxDecoration cardDecoration(
     BuildContext context, {
@@ -15,35 +25,45 @@ class FeliVetUi {
       color: Theme.of(context).cardColor,
       borderRadius: BorderRadius.circular(cardRadius),
       border: accent
-          ? Border(
-              top: BorderSide(
-                color: Theme.of(context).colorScheme.primary,
-                width: 4,
-              ),
+          ? Border.all(
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.2),
             )
           : null,
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(
-            alpha: isDark
-                ? 0.28
-                : elevated
-                ? 0.12
-                : 0.05,
-          ),
-          blurRadius: elevated ? 16 : 6,
-          spreadRadius: elevated ? 2 : 0,
-          offset: Offset(0, elevated ? 6 : 2),
+          color: Colors.black.withValues(alpha: isDark ? 0.24 : 0.08),
+          blurRadius: elevated ? 12 : 9,
+          spreadRadius: 0,
+          offset: Offset(0, elevated ? 4 : 3),
         ),
       ],
     );
   }
 
+  static BoxDecoration iconBadge(BuildContext context, {Color? color}) {
+    final badgeColor = color ?? Theme.of(context).colorScheme.primary;
+    return BoxDecoration(
+      color: badgeColor.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(compactRadius),
+    );
+  }
+
+  static BoxDecoration emptyState(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return BoxDecoration(
+      color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white,
+      borderRadius: BorderRadius.circular(cardRadius),
+      border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300),
+    );
+  }
+
   static TextStyle heading(BuildContext context, {double size = 18}) {
     return TextStyle(
-      fontSize: size,
+      fontSize: size.clamp(16, 18),
       fontWeight: FontWeight.w700,
-      letterSpacing: 0.2,
+      letterSpacing: 0,
       color: Theme.of(context).brightness == Brightness.dark
           ? Colors.white
           : Colors.black87,
@@ -52,7 +72,8 @@ class FeliVetUi {
 
   static TextStyle muted(BuildContext context, {double size = 13}) {
     return TextStyle(
-      fontSize: size,
+      fontSize: size.clamp(10, 13),
+      height: 1.25,
       color: Theme.of(context).brightness == Brightness.dark
           ? mutedDark
           : mutedLight,

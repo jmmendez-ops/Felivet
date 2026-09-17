@@ -96,7 +96,6 @@ class ResultScreen extends StatelessWidget {
           appBar: AppBar(
             backgroundColor: color,
             foregroundColor: Colors.white,
-            elevation: 0,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
               onPressed: () => Navigator.pop(context),
@@ -122,10 +121,13 @@ class ResultScreen extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: isDark
-                    ? [color.withValues(alpha: 0.28), const Color(0xFF121212)]
+                    ? [
+                        Theme.of(context).colorScheme.surface,
+                        Theme.of(context).scaffoldBackgroundColor,
+                      ]
                     : [
-                        color.withValues(alpha: 0.18),
-                        color.withValues(alpha: 0.04),
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
+                        Theme.of(context).scaffoldBackgroundColor,
                       ],
                 stops: const [0.0, 0.45],
               ),
@@ -133,47 +135,41 @@ class ResultScreen extends StatelessWidget {
             child: SafeArea(
               top: false,
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
+                padding: const EdgeInsets.fromLTRB(
+                  FeliVetUi.spaceLg,
+                  FeliVetUi.spaceXl,
+                  FeliVetUi.spaceLg,
+                  FeliVetUi.spaceXl,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (result.isLowQuality)
                       Container(
                         width: double.infinity,
-                        margin: const EdgeInsets.only(bottom: 16),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
+                        margin: const EdgeInsets.only(
+                          bottom: FeliVetUi.spaceMd,
                         ),
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? const Color(0xFF2B1A0F)
-                              : Colors.amber.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isDark
-                                ? Colors.orange.shade700
-                                : Colors.amber.shade300,
-                          ),
-                        ),
+                        padding: const EdgeInsets.all(FeliVetUi.spaceMd),
+                        decoration: FeliVetUi.cardDecoration(context),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Icon(
                               Icons.warning_amber_rounded,
-                              color: isDark
-                                  ? Colors.orange.shade300
-                                  : Colors.amber.shade800,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                               size: 18,
                             ),
-                            const SizedBox(width: 10),
+                            const SizedBox(width: FeliVetUi.spaceSm),
                             Expanded(
                               child: Text(
                                 'This scan used a lower-quality photo. Results may be less reliable — consider retaking the image for a clearer analysis.',
                                 style: TextStyle(
-                                  color: isDark
-                                      ? Colors.orange.shade100
-                                      : Colors.amber.shade900,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                   fontSize: 12.5,
                                   height: 1.4,
                                   fontWeight: FontWeight.w600,
@@ -185,7 +181,7 @@ class ResultScreen extends StatelessWidget {
                       ),
                     Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.all(18),
+                          padding: FeliVetUi.cardPadding,
                           decoration: FeliVetUi.cardDecoration(
                             context,
                             elevated: true,
@@ -194,14 +190,16 @@ class ResultScreen extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: color.withValues(alpha: 0.15),
-                                  shape: BoxShape.circle,
+                                padding: const EdgeInsets.all(
+                                  FeliVetUi.spaceSm,
+                                ),
+                                decoration: FeliVetUi.iconBadge(
+                                  context,
+                                  color: color,
                                 ),
                                 child: Icon(icon, color: color, size: 26),
                               ),
-                              const SizedBox(width: 14),
+                              const SizedBox(width: FeliVetUi.spaceMd),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -216,7 +214,7 @@ class ResultScreen extends StatelessWidget {
                                             : Colors.black54,
                                       ),
                                     ),
-                                    const SizedBox(height: 6),
+                                    const SizedBox(height: FeliVetUi.spaceSm),
                                     Text(
                                       _headerLabel(),
                                       style: TextStyle(
@@ -228,7 +226,7 @@ class ResultScreen extends StatelessWidget {
                                     if (result.detectedDisease != null &&
                                         result.detectedDisease!.toLowerCase() ==
                                             'ringworm') ...[
-                                      const SizedBox(height: 8),
+                                      const SizedBox(height: FeliVetUi.spaceSm),
                                       Text(
                                         'Ringworm is a contagious fungal infection. Keep your cat isolated and consult your veterinarian for treatment.',
                                         style: TextStyle(
@@ -254,31 +252,27 @@ class ResultScreen extends StatelessWidget {
                           curve: Curves.easeOutCubic,
                         )
                         .fadeIn(duration: const Duration(milliseconds: 400)),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: FeliVetUi.spaceMd),
                     if (result.image != null)
                       GestureDetector(
                         onTap: () => _showPhotoPopup(context, result.image!),
                         child: Container(
                           width: double.infinity,
                           height: 220,
-                          margin: const EdgeInsets.only(bottom: 16),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(
-                                  alpha: isDark ? 0.35 : 0.08,
-                                ),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
+                          margin: const EdgeInsets.only(
+                            bottom: FeliVetUi.spaceMd,
+                          ),
+                          decoration: FeliVetUi.cardDecoration(
+                            context,
+                            elevated: true,
                           ),
                           child: Stack(
                             fit: StackFit.expand,
                             children: [
                               ClipRRect(
-                                borderRadius: BorderRadius.circular(20),
+                                borderRadius: BorderRadius.circular(
+                                  FeliVetUi.cardRadius,
+                                ),
                                 child: Image.file(
                                   result.image!,
                                   fit: BoxFit.cover,
@@ -301,8 +295,8 @@ class ResultScreen extends StatelessWidget {
                                 bottom: 10,
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 6,
+                                    horizontal: FeliVetUi.spaceMd,
+                                    vertical: FeliVetUi.spaceSm,
                                   ),
                                   decoration: BoxDecoration(
                                     color: Colors.black.withValues(alpha: 0.55),
@@ -334,12 +328,8 @@ class ResultScreen extends StatelessWidget {
                       ),
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: isDark ? 0.16 : 0.10),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: color.withValues(alpha: 0.3)),
-                      ),
+                      padding: FeliVetUi.cardPadding,
+                      decoration: FeliVetUi.cardDecoration(context),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -360,11 +350,11 @@ class ResultScreen extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: FeliVetUi.spaceSm),
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
+                                  horizontal: FeliVetUi.spaceMd,
+                                  vertical: FeliVetUi.spaceXs,
                                 ),
                                 decoration: BoxDecoration(
                                   color: color.withValues(alpha: 0.2),
@@ -382,19 +372,21 @@ class ResultScreen extends StatelessWidget {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: FeliVetUi.spaceSm),
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: color.withValues(alpha: 0.18),
-                                  shape: BoxShape.circle,
+                                padding: const EdgeInsets.all(
+                                  FeliVetUi.spaceSm,
+                                ),
+                                decoration: FeliVetUi.iconBadge(
+                                  context,
+                                  color: color,
                                 ),
                                 child: Icon(icon, color: color, size: 20),
                               ),
-                              const SizedBox(width: 12),
+                              const SizedBox(width: FeliVetUi.spaceMd),
                               Expanded(
                                 child: Text.rich(
                                   TextSpan(
@@ -423,13 +415,15 @@ class ResultScreen extends StatelessWidget {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 18),
+                          const SizedBox(height: FeliVetUi.spaceLg),
                           if (result.comparisonTrend != null &&
                               result.comparisonSummary != null) ...[
                             Container(
                               width: double.infinity,
-                              padding: const EdgeInsets.all(12),
-                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.all(FeliVetUi.spaceMd),
+                              margin: const EdgeInsets.only(
+                                bottom: FeliVetUi.spaceMd,
+                              ),
                               decoration: BoxDecoration(
                                 color: color.withValues(
                                   alpha: isDark ? 0.16 : 0.10,
@@ -444,7 +438,7 @@ class ResultScreen extends StatelessWidget {
                                     color: color,
                                     size: 18,
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: FeliVetUi.spaceSm),
                                   Expanded(
                                     child: Text(
                                       '${result.comparisonTrend!.label} · ${result.comparisonSummary}',
@@ -461,12 +455,14 @@ class ResultScreen extends StatelessWidget {
                               ),
                             ),
                           ],
-                          const SizedBox(height: 18),
+                          const SizedBox(height: FeliVetUi.spaceLg),
                           if (result.urgency == UrgencyLevel.high) ...[
                             Container(
                               width: double.infinity,
-                              padding: const EdgeInsets.all(12),
-                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.all(FeliVetUi.spaceMd),
+                              margin: const EdgeInsets.only(
+                                bottom: FeliVetUi.spaceMd,
+                              ),
                               decoration: BoxDecoration(
                                 color: isDark
                                     ? const Color(0xFF2B1112)
@@ -485,7 +481,7 @@ class ResultScreen extends StatelessWidget {
                                     Icons.emergency_outlined,
                                     color: Color(0xFFFF6B6B),
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: FeliVetUi.spaceSm),
                                   Expanded(
                                     child: Text(
                                       'Emergency advice: If your cat is struggling to breathe, collapsing, refusing water, or appears much worse than usual, seek urgent veterinary help now.',
@@ -505,7 +501,9 @@ class ResultScreen extends StatelessWidget {
                           ],
                           if (result.detectedDisease != null)
                             Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.only(
+                                bottom: FeliVetUi.spaceMd,
+                              ),
                               child: OutlinedButton.icon(
                                 onPressed: () => Navigator.push(
                                   context,
@@ -521,11 +519,8 @@ class ResultScreen extends StatelessWidget {
                             ),
                           Container(
                             width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).cardColor,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
+                            padding: FeliVetUi.cardPadding,
+                            decoration: FeliVetUi.cardDecoration(context),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -538,7 +533,7 @@ class ResultScreen extends StatelessWidget {
                                           ? Colors.grey.shade400
                                           : Colors.grey.shade600,
                                     ),
-                                    const SizedBox(width: 6),
+                                    const SizedBox(width: FeliVetUi.spaceSm),
                                     Expanded(
                                       child: Text(
                                         'Evidence Analysis',
@@ -553,11 +548,11 @@ class ResultScreen extends StatelessWidget {
                                         ),
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: FeliVetUi.spaceSm),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 3,
+                                        horizontal: FeliVetUi.spaceSm,
+                                        vertical: FeliVetUi.spaceXs,
                                       ),
                                       decoration: BoxDecoration(
                                         color: color.withValues(alpha: 0.15),
@@ -576,10 +571,10 @@ class ResultScreen extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 14),
+                                const SizedBox(height: FeliVetUi.spaceMd),
                                 Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
+                                  spacing: FeliVetUi.spaceSm,
+                                  runSpacing: FeliVetUi.spaceSm,
                                   children: [
                                     _buildInfoPill(
                                       icon: Icons.insights_rounded,
@@ -606,13 +601,13 @@ class ResultScreen extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 14),
+                                const SizedBox(height: FeliVetUi.spaceMd),
                                 if (result.confidence != null) ...[
                                   Wrap(
                                     crossAxisAlignment:
                                         WrapCrossAlignment.center,
-                                    spacing: 8,
-                                    runSpacing: 2,
+                                    spacing: FeliVetUi.spaceSm,
+                                    runSpacing: FeliVetUi.spaceXs / 2,
                                     children: [
                                       Text(
                                         'Model Confidence',
@@ -634,7 +629,7 @@ class ResultScreen extends StatelessWidget {
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 6),
+                                  const SizedBox(height: FeliVetUi.spaceSm),
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(6),
                                     child: LinearProgressIndicator(
@@ -648,7 +643,7 @@ class ResultScreen extends StatelessWidget {
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(height: 4),
+                                  const SizedBox(height: FeliVetUi.spaceXs),
                                   Text(
                                     'Confidence reflects how sure the AI is about this prediction — not how severe the condition is.',
                                     style: TextStyle(
@@ -659,7 +654,7 @@ class ResultScreen extends StatelessWidget {
                                           : Colors.grey.shade600,
                                     ),
                                   ),
-                                  const SizedBox(height: 14),
+                                  const SizedBox(height: FeliVetUi.spaceMd),
                                 ],
                                 Row(
                                   children: [
@@ -673,7 +668,7 @@ class ResultScreen extends StatelessWidget {
                                         color: color,
                                       ),
                                     ),
-                                    const SizedBox(width: 10),
+                                    const SizedBox(width: FeliVetUi.spaceMd),
                                     Expanded(
                                       child: _statTile(
                                         context: context,
@@ -686,7 +681,7 @@ class ResultScreen extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 10),
+                                const SizedBox(height: FeliVetUi.spaceSm),
                                 Row(
                                   children: [
                                     Expanded(
@@ -700,7 +695,7 @@ class ResultScreen extends StatelessWidget {
                                         small: true,
                                       ),
                                     ),
-                                    const SizedBox(width: 10),
+                                    const SizedBox(width: FeliVetUi.spaceMd),
                                     Expanded(
                                       child: _statTile(
                                         context: context,
@@ -716,7 +711,7 @@ class ResultScreen extends StatelessWidget {
                                   ],
                                 ),
                                 if (result.isAmbiguous) ...[
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: FeliVetUi.spaceMd),
                                   Row(
                                     children: [
                                       Icon(
@@ -724,7 +719,7 @@ class ResultScreen extends StatelessWidget {
                                         size: 14,
                                         color: color,
                                       ),
-                                      const SizedBox(width: 6),
+                                      const SizedBox(width: FeliVetUi.spaceSm),
                                       Expanded(
                                         child: Text(
                                           'Classification is ambiguous between candidate conditions.',
@@ -743,30 +738,11 @@ class ResultScreen extends StatelessWidget {
                               ],
                             ),
                           ),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: FeliVetUi.spaceMd),
                           Container(
                             width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? const Color(0xFF1F1F1F)
-                                  : Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: color.withValues(
-                                  alpha: isDark ? 0.25 : 0.16,
-                                ),
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(
-                                    alpha: isDark ? 0.25 : 0.05,
-                                  ),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 5),
-                                ),
-                              ],
-                            ),
+                            padding: FeliVetUi.cardPadding,
+                            decoration: FeliVetUi.cardDecoration(context),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -777,7 +753,7 @@ class ResultScreen extends StatelessWidget {
                                       size: 15,
                                       color: color,
                                     ),
-                                    const SizedBox(width: 6),
+                                    const SizedBox(width: FeliVetUi.spaceSm),
                                     Text(
                                       'Expert System Reasoning',
                                       style: TextStyle(
@@ -790,7 +766,7 @@ class ResultScreen extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: FeliVetUi.spaceSm),
                                 Text(
                                   result.reasoning,
                                   style: TextStyle(
@@ -801,9 +777,11 @@ class ResultScreen extends StatelessWidget {
                                         : Colors.black87,
                                   ),
                                 ),
-                                const SizedBox(height: 14),
+                                const SizedBox(height: FeliVetUi.spaceMd),
                                 Container(
-                                  padding: const EdgeInsets.all(12),
+                                  padding: const EdgeInsets.all(
+                                    FeliVetUi.spaceMd,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: color.withValues(
                                       alpha: isDark ? 0.15 : 0.08,
@@ -825,7 +803,7 @@ class ResultScreen extends StatelessWidget {
                               ],
                             ),
                           ),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: FeliVetUi.spaceMd),
                           Row(
                             children: [
                               Icon(
@@ -835,7 +813,7 @@ class ResultScreen extends StatelessWidget {
                                     ? Colors.grey.shade500
                                     : Colors.grey.shade600,
                               ),
-                              const SizedBox(width: 6),
+                              const SizedBox(width: FeliVetUi.spaceSm),
                               Expanded(
                                 child: Text(
                                   'This is an AI-assisted triage tool. Always consult a licensed veterinarian for diagnosis.',
@@ -853,45 +831,31 @@ class ResultScreen extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 22),
+                    const SizedBox(height: FeliVetUi.spaceXl),
                     Row(
                       children: [
                         Expanded(
                           child: OutlinedButton.icon(
                             style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: FeliVetUi.spaceMd,
                               ),
-                              side: BorderSide(color: color, width: 2),
+                              shape: const StadiumBorder(),
+                              side: BorderSide(
+                                color: Theme.of(context).colorScheme.outline,
+                              ),
                             ),
                             onPressed: () => Navigator.pop(context),
-                            icon: Icon(
-                              Icons.arrow_back,
-                              color: color,
-                              size: 18,
-                            ),
+                            icon: Icon(Icons.arrow_back, size: 18),
                             label: Text(
                               'Back',
-                              style: TextStyle(
-                                color: color,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: TextStyle(fontWeight: FontWeight.w600),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 14),
+                        const SizedBox(width: FeliVetUi.spaceMd),
                         Expanded(
                           child: FilledButton.icon(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: color,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              elevation: 3,
-                            ),
                             onPressed: () async {
                               try {
                                 final file =
@@ -920,7 +884,7 @@ class ResultScreen extends StatelessWidget {
                             icon: const Icon(Icons.picture_as_pdf, size: 18),
                             label: const Text(
                               'Export PDF',
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                              style: TextStyle(fontWeight: FontWeight.w600),
                             ),
                           ),
                         ),
@@ -943,7 +907,10 @@ class ResultScreen extends StatelessWidget {
     required bool isDark,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(
+        horizontal: FeliVetUi.spaceMd,
+        vertical: FeliVetUi.spaceSm,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: isDark ? 0.16 : 0.10),
         borderRadius: BorderRadius.circular(999),
@@ -952,7 +919,7 @@ class ResultScreen extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
+          const SizedBox(width: FeliVetUi.spaceSm),
           Text(
             label,
             style: TextStyle(
@@ -976,15 +943,15 @@ class ResultScreen extends StatelessWidget {
     bool small = false,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.12 : 0.07),
-        borderRadius: BorderRadius.circular(12),
+      padding: const EdgeInsets.symmetric(
+        vertical: FeliVetUi.spaceSm,
+        horizontal: FeliVetUi.spaceSm,
       ),
+      decoration: FeliVetUi.cardDecoration(context),
       child: Column(
         children: [
           Icon(icon, size: 16, color: color),
-          const SizedBox(height: 6),
+          const SizedBox(height: FeliVetUi.spaceSm),
           Text(
             value,
             textAlign: TextAlign.center,
@@ -996,7 +963,7 @@ class ResultScreen extends StatelessWidget {
               color: isDark ? Colors.white : Colors.black87,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: FeliVetUi.spaceXs / 2),
           Text(
             label,
             textAlign: TextAlign.center,

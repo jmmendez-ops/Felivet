@@ -100,8 +100,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Analysis History'),
-        backgroundColor: Colors.deepPurple,
-        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -129,24 +127,41 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
       body: _items.isEmpty
           ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.history_rounded,
-                    size: 48,
-                    color: Colors.grey.shade400,
+              child: Container(
+                margin: const EdgeInsets.all(FeliVetUi.spaceXl),
+                padding: const EdgeInsets.all(FeliVetUi.spaceXl),
+                decoration: FeliVetUi.emptyState(context),
+                child: CustomPaint(
+                  foregroundPainter: DashedBorderPainter(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.3),
+                    radius: FeliVetUi.cardRadius,
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'No saved analyses yet',
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 15),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(FeliVetUi.spaceSm),
+                        decoration: FeliVetUi.iconBadge(context),
+                        child: Icon(
+                          Icons.history_rounded,
+                          size: 28,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: FeliVetUi.spaceMd),
+                      Text(
+                        'No saved analyses yet',
+                        style: FeliVetUi.muted(context, size: 15),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             )
           : ListView.builder(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(FeliVetUi.spaceLg),
               itemCount: _items.length,
               itemBuilder: (context, i) {
                 final r = _items[i];
@@ -155,11 +170,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   direction: DismissDirection.endToStart,
                   background: Container(
                     alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: FeliVetUi.spaceXl,
+                    ),
+                    margin: const EdgeInsets.only(bottom: FeliVetUi.spaceMd),
                     decoration: BoxDecoration(
                       color: Colors.red.shade400,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(FeliVetUi.cardRadius),
                     ),
                     child: const Icon(Icons.delete, color: Colors.white),
                   ),
@@ -168,11 +185,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     return !_items.contains(r);
                   },
                   child: Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: FeliVetUi.spaceMd),
+                    padding: const EdgeInsets.all(FeliVetUi.spaceMd),
                     decoration: FeliVetUi.cardDecoration(context),
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(FeliVetUi.cardRadius),
                       onTap: () {
                         AppSounds.playTap();
                         Navigator.push(
@@ -192,14 +209,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           Container(
                             width: 128,
                             height: 96,
-                            decoration: BoxDecoration(
-                              color: r.urgency.color.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(12),
+                            decoration: FeliVetUi.iconBadge(
+                              context,
+                              color: r.urgency.color,
                             ),
                             child: Center(
                               child: r.image != null
                                   ? ClipRRect(
-                                      borderRadius: BorderRadius.circular(10),
+                                      borderRadius: BorderRadius.circular(
+                                        FeliVetUi.compactRadius,
+                                      ),
                                       child: Image.file(
                                         r.image!,
                                         width: 128,
@@ -219,7 +238,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                     ),
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: FeliVetUi.spaceMd),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -228,19 +247,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                   r.detectedDisease ?? 'No disease detected',
                                   style: FeliVetUi.heading(context, size: 16),
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: FeliVetUi.spaceXs),
                                 Text(
                                   '${r.urgency.label} · ${r.timestamp.day}/${r.timestamp.month}/${r.timestamp.year} ${r.timestamp.hour.toString().padLeft(2, '0')}:${r.timestamp.minute.toString().padLeft(2, '0')}',
                                   style: FeliVetUi.muted(context, size: 12),
                                 ),
                                 if (r.confidence != null)
                                   Padding(
-                                    padding: const EdgeInsets.only(top: 4),
+                                    padding: const EdgeInsets.only(
+                                      top: FeliVetUi.spaceXs,
+                                    ),
                                     child: Text(
                                       'Confidence ${((r.confidence! * 100).round())}% · ${r.selectedSymptoms.isNotEmpty ? r.selectedSymptoms.join(', ') : '—'}',
                                       style: TextStyle(
-                                        color: Colors.grey.shade600,
-                                        fontSize: 12,
+                                        color: FeliVetUi.mutedLight,
+                                        fontSize: 11,
                                       ),
                                     ),
                                   ),
@@ -248,10 +269,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(
-                              Icons.delete_outline,
-                              color: Colors.grey,
-                            ),
+                            icon: const Icon(Icons.delete_outline),
                             tooltip: 'Delete',
                             onPressed: () => _confirmDelete(r),
                           ),

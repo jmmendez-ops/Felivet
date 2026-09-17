@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/app_state.dart';
+import '../core/ui_tokens.dart';
 
 class DiseaseInfoScreen extends StatelessWidget {
   final String diseaseName;
@@ -90,46 +91,43 @@ class DiseaseInfoScreen extends StatelessWidget {
         final normalizedDisease = diseaseName.toLowerCase();
         final info =
             _infoByDisease[normalizedDisease] ?? _infoByDisease['scabies']!;
-        final color = Colors.deepPurple;
+        final color = Theme.of(context).colorScheme.primary;
 
         return Scaffold(
-          appBar: AppBar(
-            title: Text(diseaseName),
-            backgroundColor: color,
-            foregroundColor: Colors.white,
-            elevation: 0,
-          ),
+          appBar: AppBar(title: Text(diseaseName)),
           body: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: isDark
-                    ? [Colors.black12, const Color(0xFF121212)]
-                    : [color.withValues(alpha: 0.16), Colors.white],
+                    ? [
+                        Theme.of(context).colorScheme.surface,
+                        Theme.of(context).scaffoldBackgroundColor,
+                      ]
+                    : [
+                        color.withValues(alpha: 0.08),
+                        Theme.of(context).scaffoldBackgroundColor,
+                      ],
               ),
             ),
             child: SafeArea(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+                padding: const EdgeInsets.fromLTRB(
+                  FeliVetUi.spaceLg,
+                  FeliVetUi.spaceLg,
+                  FeliVetUi.spaceLg,
+                  FeliVetUi.spaceXl,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1F1F1F) : Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(
-                              alpha: isDark ? 0.3 : 0.08,
-                            ),
-                            blurRadius: 12,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
+                      padding: FeliVetUi.cardPadding,
+                      decoration: FeliVetUi.cardDecoration(
+                        context,
+                        elevated: true,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -137,43 +135,45 @@ class DiseaseInfoScreen extends StatelessWidget {
                           Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: color.withValues(alpha: 0.14),
-                                  shape: BoxShape.circle,
+                                padding: const EdgeInsets.all(
+                                  FeliVetUi.spaceSm,
+                                ),
+                                decoration: FeliVetUi.iconBadge(
+                                  context,
+                                  color: color,
                                 ),
                                 child: Icon(
                                   Icons.medical_information_outlined,
                                   color: color,
                                 ),
                               ),
-                              const SizedBox(width: 12),
+                              const SizedBox(width: FeliVetUi.spaceMd),
                               Expanded(
                                 child: Text(
                                   diseaseName,
                                   style: TextStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.bold,
-                                    color: isDark
-                                        ? Colors.white
-                                        : Colors.black87,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
                                   ),
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: FeliVetUi.spaceMd),
                           Text(
                             info.description,
                             style: TextStyle(
                               fontSize: 14,
-                              color: isDark
-                                  ? Colors.grey.shade300
-                                  : Colors.grey.shade700,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                               height: 1.5,
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: FeliVetUi.spaceMd),
                           Wrap(
                             spacing: 8,
                             runSpacing: 8,
@@ -186,8 +186,9 @@ class DiseaseInfoScreen extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: FeliVetUi.spaceMd),
                     _buildSection(
+                      context,
                       'Common symptoms',
                       Icons.healing_outlined,
                       info.symptoms,
@@ -195,6 +196,7 @@ class DiseaseInfoScreen extends StatelessWidget {
                       isDark,
                     ),
                     _buildSection(
+                      context,
                       'Likely causes',
                       Icons.psychology_outlined,
                       info.causes,
@@ -202,6 +204,7 @@ class DiseaseInfoScreen extends StatelessWidget {
                       isDark,
                     ),
                     _buildSection(
+                      context,
                       'Contagious status',
                       Icons.warning_amber_rounded,
                       [info.contagiousStatus],
@@ -209,6 +212,7 @@ class DiseaseInfoScreen extends StatelessWidget {
                       isDark,
                     ),
                     _buildSection(
+                      context,
                       'Home care',
                       Icons.home_repair_service_outlined,
                       info.homeCare,
@@ -216,6 +220,7 @@ class DiseaseInfoScreen extends StatelessWidget {
                       isDark,
                     ),
                     _buildSection(
+                      context,
                       'Veterinary advice',
                       Icons.local_hospital_outlined,
                       info.veterinaryAdvice,
@@ -234,7 +239,10 @@ class DiseaseInfoScreen extends StatelessWidget {
 
   Widget _buildBadge(String label, Color color, bool isDark) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: FeliVetUi.spaceMd,
+        vertical: FeliVetUi.spaceSm,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(999),
@@ -251,6 +259,7 @@ class DiseaseInfoScreen extends StatelessWidget {
   }
 
   Widget _buildSection(
+    BuildContext context,
     String title,
     IconData icon,
     List<String> items,
@@ -259,55 +268,46 @@ class DiseaseInfoScreen extends StatelessWidget {
   ) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1F1F1F) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: color.withValues(alpha: isDark ? 0.25 : 0.18),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      margin: const EdgeInsets.only(bottom: FeliVetUi.spaceMd),
+      padding: FeliVetUi.cardPadding,
+      decoration: FeliVetUi.cardDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 18, color: color),
-              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.all(FeliVetUi.spaceXs),
+                decoration: FeliVetUi.iconBadge(context, color: color),
+                child: Icon(icon, size: 18, color: color),
+              ),
+              const SizedBox(width: FeliVetUi.spaceSm),
               Text(
                 title,
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black87,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: FeliVetUi.spaceSm),
           ...items.map(
             (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: FeliVetUi.spaceSm),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Icon(Icons.fiber_manual_record, size: 9, color: color),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: FeliVetUi.spaceSm),
                   Expanded(
                     child: Text(
                       item,
                       style: TextStyle(
                         fontSize: 13.5,
                         height: 1.4,
-                        color: isDark ? Colors.grey.shade200 : Colors.black87,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ),

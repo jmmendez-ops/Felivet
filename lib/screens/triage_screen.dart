@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:ui';
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -443,15 +442,20 @@ class _TriageScreenState extends State<TriageScreen> {
     return output;
   }
 
-  Widget _buildCatAvatar(CatProfile profile, {double radius = 10}) {
+  Widget _buildCatAvatar(
+    BuildContext context,
+    CatProfile profile, {
+    double radius = 10,
+  }) {
     final photoPath = profile.photoPath;
+    final primary = Theme.of(context).colorScheme.primary;
     return CircleAvatar(
       radius: radius,
-      backgroundColor: Colors.deepPurple.shade100,
+      backgroundColor: primary.withValues(alpha: 0.14),
       child: photoPath == null
           ? Text(
               profile.name.substring(0, 1).toUpperCase(),
-              style: TextStyle(fontSize: radius, color: Colors.deepPurple),
+              style: TextStyle(fontSize: radius, color: primary),
             )
           : ClipOval(
               child: Image.file(
@@ -462,7 +466,7 @@ class _TriageScreenState extends State<TriageScreen> {
                 cacheWidth: (radius * 4).round(),
                 errorBuilder: (_, _, _) => Text(
                   profile.name.substring(0, 1).toUpperCase(),
-                  style: TextStyle(fontSize: radius, color: Colors.deepPurple),
+                  style: TextStyle(fontSize: radius, color: primary),
                 ),
               ),
             ),
@@ -921,144 +925,63 @@ class _TriageScreenState extends State<TriageScreen> {
     }
   }
 
-  Widget _buildSymptomOption({
+  Widget _buildSymptomChip({
     required String title,
-    required String subtitle,
     required bool value,
-    required ValueChanged<bool?> onChanged,
-    required bool isDark,
+    required ValueChanged<bool> onSelected,
   }) {
     final info = _symptomInfo[title.toLowerCase()] ?? _symptomInfo['default']!;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      margin: const EdgeInsets.only(bottom: 6),
-      decoration: BoxDecoration(
+    final primary = Theme.of(context).colorScheme.primary;
+    return FilterChip(
+      selected: value,
+      onSelected: onSelected,
+      showCheckmark: false,
+      selectedColor: primary,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      side: BorderSide(
         color: value
-            ? (isDark
-                  ? Colors.white.withValues(alpha: 0.08)
-                  : const Color(0xFFF5F5F7))
-            : (isDark ? const Color(0xFF1F1F1F) : Colors.white),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color: value
-              ? (isDark
-                    ? Colors.white.withValues(alpha: 0.2)
-                    : Colors.grey.shade300)
-              : (isDark
-                    ? Colors.white.withValues(alpha: 0.1)
-                    : Colors.grey.shade200),
-          width: value ? 2.0 : 1.0,
-        ),
-        boxShadow: value
-            ? [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-                  blurRadius: 8,
-                  spreadRadius: 0,
-                ),
-              ]
-            : [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.1 : 0.03),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+            ? primary
+            : Theme.of(context).colorScheme.outline.withValues(alpha: 0.45),
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: CheckboxListTile(
-          title: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontWeight: value ? FontWeight.w700 : FontWeight.w600,
-                    color: isDark ? Colors.white : Colors.black87,
-                    fontSize: 16,
-                    letterSpacing: -0.2,
-                  ),
-                ),
-              ),
-              IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints.tightFor(
-                  width: 24,
-                  height: 24,
-                ),
-                icon: const Icon(Icons.info_outline, size: 20),
-                tooltip: 'Why this matters',
-                onPressed: () {
-                  AppSounds.playTap();
-                  showDialog(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      title: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              title,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -0.2,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            tooltip: 'Close insight',
-                            icon: const Icon(Icons.close),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                        ],
-                      ),
-                      content: Text(
-                        info,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w500,
-                          height: 1.5,
-                        ),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text(
-                            'Close',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ],
+      shape: const StadiumBorder(),
+      labelStyle: TextStyle(
+        color: value
+            ? Theme.of(context).colorScheme.onPrimary
+            : Theme.of(context).colorScheme.onSurface,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      ),
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(title),
+          const SizedBox(width: FeliVetUi.spaceXs),
+          GestureDetector(
+            onTap: () {
+              AppSounds.playTap();
+              showDialog(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: Text(title),
+                  content: Text(info),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Close'),
                     ),
-                  );
-                },
-              ),
-            ],
-          ),
-          subtitle: Text(
-            subtitle,
-            style: TextStyle(
-              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              height: 1.3,
+                  ],
+                ),
+              );
+            },
+            child: Icon(
+              Icons.info_outline,
+              size: 15,
+              color: value
+                  ? Theme.of(context).colorScheme.onPrimary
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
-          value: value,
-          onChanged: onChanged,
-          dense: true,
-          horizontalTitleGap: 8,
-          minLeadingWidth: 24,
-          activeColor: isDark ? Colors.white70 : Colors.black87,
-          checkColor: isDark ? Colors.black87 : Colors.white,
-          controlAffinity: ListTileControlAffinity.leading,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 0,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-        ),
+        ],
       ),
     );
   }
@@ -1080,7 +1003,8 @@ class _TriageScreenState extends State<TriageScreen> {
     final latestLabel = latest == null
         ? 'No scan yet'
         : latest.detectedDisease ?? 'No detected condition';
-    final urgencyColor = latest?.urgency.color ?? Colors.deepPurple;
+    final urgencyColor =
+        latest?.urgency.color ?? Theme.of(context).colorScheme.primary;
     final tip = buildDailyCareTip(
       scanCount: activeHistory.length,
       latestUrgency: latest?.urgency,
@@ -1093,7 +1017,7 @@ class _TriageScreenState extends State<TriageScreen> {
       children: [
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(16),
+          padding: FeliVetUi.cardPadding,
           decoration: FeliVetUi.cardDecoration(context, elevated: true),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1107,7 +1031,7 @@ class _TriageScreenState extends State<TriageScreen> {
                   color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: FeliVetUi.spaceSm),
               Row(
                 children: [
                   Expanded(
@@ -1144,13 +1068,13 @@ class _TriageScreenState extends State<TriageScreen> {
                 ],
               ),
               if (latest != null) ...[
-                const SizedBox(height: 6),
+                const SizedBox(height: FeliVetUi.spaceSm),
                 Text(
                   'Scanned: ${latest.timestamp.day}/${latest.timestamp.month}/${latest.timestamp.year} ${latest.timestamp.hour.toString().padLeft(2, '0')}:${latest.timestamp.minute.toString().padLeft(2, '0')}',
                   style: FeliVetUi.muted(context, size: 12),
                 ),
               ],
-              const SizedBox(height: 10),
+              const SizedBox(height: FeliVetUi.spaceSm),
               Row(
                 children: [
                   _statChip(
@@ -1159,9 +1083,9 @@ class _TriageScreenState extends State<TriageScreen> {
                     'Total scans',
                     isDark,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: FeliVetUi.spaceSm),
                   if (latest?.confidence != null) ...[
-                    const SizedBox(width: 8),
+                    const SizedBox(width: FeliVetUi.spaceSm),
                     _statChip(
                       Icons.verified_rounded,
                       '${(latest!.confidence! * 100).toStringAsFixed(0)}%',
@@ -1177,7 +1101,7 @@ class _TriageScreenState extends State<TriageScreen> {
         const SizedBox(height: 12),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(FeliVetUi.spaceMd),
           decoration: FeliVetUi.cardDecoration(context),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1191,7 +1115,7 @@ class _TriageScreenState extends State<TriageScreen> {
                   color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: FeliVetUi.spaceXs),
               Text(
                 'Tracks your cat\'s health score over time based on scan results. Higher scores indicate more urgency.',
                 style: TextStyle(
@@ -1200,14 +1124,12 @@ class _TriageScreenState extends State<TriageScreen> {
                   height: 1.35,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: FeliVetUi.spaceSm),
               if (trendSpots.length < 2)
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 18),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  decoration: FeliVetUi.emptyState(context),
                   child: CustomPaint(
                     foregroundPainter: DashedBorderPainter(
                       color: isDark ? Colors.white24 : Colors.grey.shade300,
@@ -1219,7 +1141,7 @@ class _TriageScreenState extends State<TriageScreen> {
                           size: 30,
                           color: FeliVetUi.mutedLight,
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: FeliVetUi.spaceSm),
                         Text(
                           'Your scan trend will appear here after your first analysis',
                           textAlign: TextAlign.center,
@@ -1293,9 +1215,7 @@ class _TriageScreenState extends State<TriageScreen> {
                         LineChartBarData(
                           spots: trendSpots,
                           isCurved: true,
-                          color: isDark
-                              ? Colors.deepPurple.shade300
-                              : Colors.deepPurple,
+                          color: Theme.of(context).colorScheme.primary,
                           barWidth: 3,
                           dotData: FlDotData(
                             show: true,
@@ -1314,11 +1234,9 @@ class _TriageScreenState extends State<TriageScreen> {
                           ),
                           belowBarData: BarAreaData(
                             show: true,
-                            color:
-                                (isDark
-                                        ? Colors.deepPurple.shade300
-                                        : Colors.deepPurple)
-                                    .withValues(alpha: 0.16),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.16),
                           ),
                         ),
                       ],
@@ -1328,7 +1246,7 @@ class _TriageScreenState extends State<TriageScreen> {
                     ),
                   ),
                 ),
-              const SizedBox(height: 4),
+              const SizedBox(height: FeliVetUi.spaceXs),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -1355,25 +1273,23 @@ class _TriageScreenState extends State<TriageScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: FeliVetUi.spaceMd),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1F1F1F) : const Color(0xFFF5F5F7),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isDark ? Colors.white10 : Colors.grey.shade200,
-            ),
-          ),
+          padding: const EdgeInsets.all(FeliVetUi.spaceMd),
+          decoration: FeliVetUi.cardDecoration(context),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                Icons.tips_and_updates_outlined,
-                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              Container(
+                padding: const EdgeInsets.all(FeliVetUi.spaceSm),
+                decoration: FeliVetUi.iconBadge(context),
+                child: Icon(
+                  Icons.tips_and_updates_outlined,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: FeliVetUi.spaceSm),
               Expanded(
                 child: Text(
                   tip,
@@ -1396,23 +1312,24 @@ class _TriageScreenState extends State<TriageScreen> {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-        ),
+        decoration: FeliVetUi.cardDecoration(context),
         child: Column(
           children: [
-            Icon(
-              icon,
-              size: 16,
-              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+            Container(
+              padding: const EdgeInsets.all(FeliVetUi.spaceSm),
+              decoration: FeliVetUi.iconBadge(context),
+              child: Icon(
+                icon,
+                size: 16,
+                color: Theme.of(context).colorScheme.primary,
+              ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: FeliVetUi.spaceXs),
             Text(
               value,
               style: TextStyle(
                 fontWeight: FontWeight.w700,
-                color: isDark ? Colors.white : Colors.black87,
+                color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 15,
                 letterSpacing: -0.3,
               ),
@@ -1422,7 +1339,7 @@ class _TriageScreenState extends State<TriageScreen> {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 letterSpacing: 0.2,
               ),
             ),
@@ -1446,7 +1363,7 @@ class _TriageScreenState extends State<TriageScreen> {
           height: 9,
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: FeliVetUi.spaceXs),
         Text(
           '$score $label',
           style: TextStyle(
@@ -1465,36 +1382,29 @@ class _TriageScreenState extends State<TriageScreen> {
       valueListenable: isDarkModeNotifier,
       builder: (context, isDark, child) {
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
+          padding: const EdgeInsets.all(FeliVetUi.spaceXl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (_imageQualityMessage != null)
                 Container(
                   width: double.infinity,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade50,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.amber.shade300),
-                  ),
+                  margin: const EdgeInsets.only(bottom: FeliVetUi.spaceMd),
+                  padding: FeliVetUi.cardPadding,
+                  decoration: FeliVetUi.cardDecoration(context),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Icon(
                         Icons.lightbulb_circle,
-                        color: Colors.amber.shade800,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: FeliVetUi.spaceSm),
                       Expanded(
                         child: Text(
                           _imageQualityMessage!,
                           style: TextStyle(
-                            color: Colors.amber.shade900,
+                            color: Theme.of(context).colorScheme.onSurface,
                             fontSize: 13,
                           ),
                         ),
@@ -1505,49 +1415,38 @@ class _TriageScreenState extends State<TriageScreen> {
               else if (_loadError != null)
                 Container(
                   width: double.infinity,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.red.shade300),
-                  ),
+                  margin: const EdgeInsets.only(bottom: FeliVetUi.spaceMd),
+                  padding: FeliVetUi.cardPadding,
+                  decoration: FeliVetUi.cardDecoration(context),
                   child: Text(
                     '⚠️ $_loadError',
-                    style: TextStyle(color: Colors.red.shade900, fontSize: 13),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontSize: 13,
+                    ),
                   ),
                 )
               else if (!_isModelLoaded)
                 Container(
                   width: double.infinity,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade50,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.amber.shade300),
-                  ),
+                  margin: const EdgeInsets.only(bottom: FeliVetUi.spaceMd),
+                  padding: FeliVetUi.cardPadding,
+                  decoration: FeliVetUi.cardDecoration(context),
                   child: Row(
                     children: [
-                      const SizedBox(
+                      SizedBox(
                         height: 16,
                         width: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.amber,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: FeliVetUi.spaceMd),
                       Text(
                         'Loading detection model…',
                         style: TextStyle(
-                          color: Colors.amber.shade900,
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontSize: 13,
                         ),
                       ),
@@ -1557,36 +1456,31 @@ class _TriageScreenState extends State<TriageScreen> {
               Container(
                 width: double.infinity,
                 height: 260,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(
-                        alpha: isDark ? 0.3 : 0.05,
-                      ),
-                      blurRadius: 10,
-                      spreadRadius: 2,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
+                decoration: FeliVetUi.cardDecoration(context, elevated: true),
                 child: Stack(
                   children: [
                     Positioned.fill(
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(
+                          FeliVetUi.cardRadius,
+                        ),
                         child: _previewImage == null
                             ? SizedBox.expand(
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(
-                                      Icons.pets,
-                                      size: 60,
-                                      color: isDark
-                                          ? Colors.grey.shade600
-                                          : Colors.grey.shade300,
+                                    Container(
+                                      padding: const EdgeInsets.all(
+                                        FeliVetUi.spaceMd,
+                                      ),
+                                      decoration: FeliVetUi.iconBadge(context),
+                                      child: Icon(
+                                        Icons.pets,
+                                        size: 34,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                      ),
                                     ),
                                     const SizedBox(height: 10),
                                     Text(
@@ -1637,27 +1531,13 @@ class _TriageScreenState extends State<TriageScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: FeliVetUi.spaceXl),
               _buildQuickStats(isDark),
-              const SizedBox(height: 20),
+              const SizedBox(height: FeliVetUi.spaceXl),
               Row(
                 children: [
                   Expanded(
                     child: FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        side: BorderSide(
-                          color: isDark
-                              ? Colors.white.withValues(alpha: 0.2)
-                              : Colors.grey.shade300,
-                          width: 2,
-                        ),
-                        foregroundColor: Colors.white,
-                        backgroundColor: Colors.deepPurple,
-                      ),
                       onPressed: () {
                         AppSounds.playTap();
                         _getImage(ImageSource.camera);
@@ -1673,23 +1553,9 @@ class _TriageScreenState extends State<TriageScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 15),
+                  const SizedBox(width: FeliVetUi.spaceMd),
                   Expanded(
                     child: FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        side: BorderSide(
-                          color: isDark
-                              ? Colors.white.withValues(alpha: 0.2)
-                              : Colors.grey.shade300,
-                          width: 2,
-                        ),
-                        foregroundColor: Colors.white,
-                        backgroundColor: Colors.deepPurple,
-                      ),
                       onPressed: () {
                         AppSounds.playTap();
                         _getImage(ImageSource.gallery);
@@ -1707,97 +1573,84 @@ class _TriageScreenState extends State<TriageScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
-              Text(
-                'Systemic Symptoms',
-                style: FeliVetUi.heading(context, size: 22),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Check any symptoms your cat is currently showing.',
-                style: FeliVetUi.muted(context, size: 14).copyWith(height: 1.4),
-              ),
-              const SizedBox(height: 15),
-              Theme(
-                data: Theme.of(
-                  context,
-                ).copyWith(dividerColor: Colors.transparent),
-                child: ExpansionTile(
-                  tilePadding: const EdgeInsets.symmetric(horizontal: 4),
-                  childrenPadding: EdgeInsets.zero,
-                  title: Text(
-                    _symptomCount == 0
-                        ? 'Select symptoms'
-                        : '$_symptomCount symptom${_symptomCount == 1 ? '' : 's'} selected',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                  subtitle: Text(
-                    'Tap to choose from the symptom checklist',
-                    style: TextStyle(
-                      color: isDark
-                          ? Colors.grey.shade400
-                          : Colors.grey.shade600,
-                    ),
-                  ),
+              const SizedBox(height: FeliVetUi.spaceSm),
+              Container(
+                width: double.infinity,
+                padding: FeliVetUi.cardPadding,
+                decoration: FeliVetUi.cardDecoration(context),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSymptomOption(
-                      title: 'Vomiting',
-                      subtitle: 'Frequent throwing up or dry heaving',
-                      value: _isVomiting,
-                      onChanged: (v) => setState(() => _isVomiting = v!),
-                      isDark: isDark,
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(FeliVetUi.spaceSm),
+                          decoration: FeliVetUi.iconBadge(context),
+                          child: Icon(
+                            Icons.monitor_heart_outlined,
+                            size: 20,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        const SizedBox(width: FeliVetUi.spaceSm),
+                        Text(
+                          'Systemic Symptoms',
+                          style: FeliVetUi.heading(context, size: 18),
+                        ),
+                      ],
                     ),
-                    _buildSymptomOption(
-                      title: 'Lethargy',
-                      subtitle: 'Unusually tired, sleepy, or unresponsive',
-                      value: _isLethargic,
-                      onChanged: (v) => setState(() => _isLethargic = v!),
-                      isDark: isDark,
-                    ),
-                    _buildSymptomOption(
-                      title: 'Loss of Appetite',
-                      subtitle: 'Ignoring food or eating very little',
-                      value: _lostAppetite,
-                      onChanged: (v) => setState(() => _lostAppetite = v!),
-                      isDark: isDark,
+                    const SizedBox(height: FeliVetUi.spaceMd),
+                    Wrap(
+                      spacing: FeliVetUi.spaceSm,
+                      runSpacing: FeliVetUi.spaceSm,
+                      children: [
+                        _buildSymptomChip(
+                          title: 'Vomiting',
+                          value: _isVomiting,
+                          onSelected: (value) =>
+                              setState(() => _isVomiting = value),
+                        ),
+                        _buildSymptomChip(
+                          title: 'Lethargy',
+                          value: _isLethargic,
+                          onSelected: (value) =>
+                              setState(() => _isLethargic = value),
+                        ),
+                        _buildSymptomChip(
+                          title: 'Loss of Appetite',
+                          value: _lostAppetite,
+                          onSelected: (value) =>
+                              setState(() => _lostAppetite = value),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
               if (hasSymptoms) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: FeliVetUi.spaceSm),
                 Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.06)
-                        : const Color(0xFFF5F5F7),
-                    borderRadius: BorderRadius.circular(15),
-                    border: Border.all(
-                      color: isDark ? Colors.white10 : Colors.grey.shade200,
-                      width: 1.5,
-                    ),
-                  ),
+                  padding: FeliVetUi.cardPadding,
+                  decoration: FeliVetUi.cardDecoration(context),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        Icons.lightbulb_outline,
-                        color: isDark
-                            ? Colors.grey.shade400
-                            : Colors.grey.shade600,
+                      Container(
+                        padding: const EdgeInsets.all(FeliVetUi.spaceSm),
+                        decoration: FeliVetUi.iconBadge(context),
+                        child: Icon(
+                          Icons.lightbulb_outline,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: FeliVetUi.spaceMd),
                       Expanded(
                         child: Text(
                           _getSymptomInsight(),
                           style: TextStyle(
                             color: isDark
                                 ? Colors.grey.shade200
-                                : Colors.black87,
+                                : Theme.of(context).colorScheme.onSurface,
                             height: 1.5,
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
@@ -1811,16 +1664,7 @@ class _TriageScreenState extends State<TriageScreen> {
               const SizedBox(height: 25),
               SizedBox(
                 width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurple,
-                    foregroundColor: Colors.white,
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                  ),
+                child: FilledButton(
                   onPressed: _isScanning
                       ? null
                       : () {
@@ -1872,7 +1716,6 @@ class _TriageScreenState extends State<TriageScreen> {
 
         return Scaffold(
           appBar: AppBar(
-            toolbarHeight: 52,
             title: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -1936,6 +1779,7 @@ class _TriageScreenState extends State<TriageScreen> {
                                           (_activeProfile?.id ?? '');
                                       return ListTile(
                                         leading: _buildCatAvatar(
+                                          context,
                                           profile,
                                           radius: 20,
                                         ),
@@ -1977,14 +1821,18 @@ class _TriageScreenState extends State<TriageScreen> {
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
+                      horizontal: FeliVetUi.spaceMd,
+                      vertical: FeliVetUi.spaceSm,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.16),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(999),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.45),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.22),
                       ),
                     ),
                     child: Row(
@@ -1998,12 +1846,16 @@ class _TriageScreenState extends State<TriageScreen> {
                                   'M',
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: Colors.deepPurple,
+                                    color: FeliVetUi.accent,
                                   ),
                                 ),
                               )
-                            : _buildCatAvatar(_activeProfile!, radius: 10),
-                        const SizedBox(width: 6),
+                            : _buildCatAvatar(
+                                context,
+                                _activeProfile!,
+                                radius: 10,
+                              ),
+                        const SizedBox(width: FeliVetUi.spaceSm),
                         Text(
                           _activeProfile?.name ?? 'My Cat',
                           style: const TextStyle(
@@ -2011,7 +1863,7 @@ class _TriageScreenState extends State<TriageScreen> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const SizedBox(width: 2),
+                        const SizedBox(width: FeliVetUi.spaceXs / 2),
                         const Icon(Icons.keyboard_arrow_down, size: 18),
                       ],
                     ),
@@ -2020,54 +1872,30 @@ class _TriageScreenState extends State<TriageScreen> {
               ],
             ),
             centerTitle: true,
-            elevation: 0,
-            backgroundColor: Colors.deepPurple,
-            foregroundColor: Colors.white,
           ),
           body: IndexedStack(index: _selectedIndex, children: screens),
-          bottomNavigationBar: ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? Colors.deepPurple.withValues(alpha: 0.22)
-                      : Colors.white.withValues(alpha: 0.65),
-                  border: Border.all(
-                    color: isDark
-                        ? Colors.white24
-                        : Colors.grey.withValues(alpha: 0.18),
-                    width: 1,
-                  ),
-                ),
-                child: NavigationBar(
-                  backgroundColor: Colors.transparent,
-                  indicatorColor: Colors.deepPurple.shade100,
-                  selectedIndex: _selectedIndex,
-                  onDestinationSelected: (index) {
-                    setState(() => _selectedIndex = index);
-                  },
-                  destinations: const [
-                    NavigationDestination(
-                      icon: Icon(Icons.dashboard_outlined),
-                      selectedIcon: Icon(Icons.dashboard_rounded),
-                      label: 'Dashboard',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.history_outlined),
-                      selectedIcon: Icon(Icons.history_rounded),
-                      label: 'History',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.settings_outlined),
-                      selectedIcon: Icon(Icons.settings_rounded),
-                      label: 'Settings',
-                    ),
-                  ],
-                ),
+          bottomNavigationBar: NavigationBar(
+            selectedIndex: _selectedIndex,
+            onDestinationSelected: (index) {
+              setState(() => _selectedIndex = index);
+            },
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.dashboard_outlined),
+                selectedIcon: Icon(Icons.dashboard_rounded),
+                label: 'Dashboard',
               ),
-            ),
+              NavigationDestination(
+                icon: Icon(Icons.history_outlined),
+                selectedIcon: Icon(Icons.history_rounded),
+                label: 'History',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.settings_outlined),
+                selectedIcon: Icon(Icons.settings_rounded),
+                label: 'Settings',
+              ),
+            ],
           ),
         );
       },
@@ -2080,50 +1908,37 @@ class _TriageScreenState extends State<TriageScreen> {
       builder: (context, isDark, child) {
         final reportHistory = _activeCatHistory;
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
+          padding: const EdgeInsets.all(FeliVetUi.spaceXl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Settings',
                 style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black87,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: FeliVetUi.spaceLg),
               GestureDetector(
                 onTap: () => _showAddCatDialog(fromSettings: true),
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1F1F1F) : Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.deepPurple.withValues(
-                        alpha: isDark ? 0.25 : 0.16,
-                      ),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(
-                          alpha: isDark ? 0.25 : 0.05,
-                        ),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
-                  ),
+                  padding: FeliVetUi.cardPadding,
+                  decoration: FeliVetUi.cardDecoration(context),
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.pets_outlined,
-                        color: Colors.deepPurple,
-                        size: 22,
+                      Container(
+                        padding: const EdgeInsets.all(FeliVetUi.spaceSm),
+                        decoration: FeliVetUi.iconBadge(context),
+                        child: Icon(
+                          Icons.pets_outlined,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 22,
+                        ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: FeliVetUi.spaceMd),
                       Expanded(
                         child: Text(
                           'Add cat profile',
@@ -2138,33 +1953,25 @@ class _TriageScreenState extends State<TriageScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: FeliVetUi.spaceMd),
               if (_profiles.isNotEmpty) ...[
                 Text(
                   'Your cats',
                   style: TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black87,
+                    fontWeight: FontWeight.w700,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: FeliVetUi.spaceMd),
                 ..._profiles.map((profile) {
                   final isActive = profile.id == (_activeProfile?.id ?? '');
                   return Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.only(bottom: FeliVetUi.spaceSm),
                     child: Container(
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF232323) : Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.deepPurple.withValues(
-                            alpha: isDark ? 0.2 : 0.14,
-                          ),
-                        ),
-                      ),
+                      decoration: FeliVetUi.cardDecoration(context),
                       child: ListTile(
-                        leading: _buildCatAvatar(profile, radius: 20),
+                        leading: _buildCatAvatar(context, profile, radius: 20),
                         title: Text(profile.name),
                         subtitle: profile.breed != null
                             ? Text(profile.breed!)
@@ -2173,7 +1980,10 @@ class _TriageScreenState extends State<TriageScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (isActive)
-                              Icon(Icons.check_circle, color: Colors.deepPurple)
+                              Icon(
+                                Icons.check_circle,
+                                color: Theme.of(context).colorScheme.primary,
+                              )
                             else
                               IconButton(
                                 icon: const Icon(Icons.delete_outline),
@@ -2191,40 +2001,32 @@ class _TriageScreenState extends State<TriageScreen> {
                     ),
                   );
                 }),
-                const SizedBox(height: 20),
+                const SizedBox(height: FeliVetUi.spaceMd),
               ],
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1F1F1F) : Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.deepPurple.withValues(
-                      alpha: isDark ? 0.25 : 0.16,
-                    ),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(
-                        alpha: isDark ? 0.25 : 0.05,
-                      ),
-                      blurRadius: 10,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
+                padding: FeliVetUi.cardPadding,
+                decoration: FeliVetUi.cardDecoration(context),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Icon(
-                          Icons.brightness_7_outlined,
-                          color: Colors.deepPurple,
-                          size: 22,
+                        Container(
+                          padding: const EdgeInsets.all(FeliVetUi.spaceSm),
+                          decoration: FeliVetUi.iconBadge(
+                            context,
+                            color: isDark ? Colors.amber : null,
+                          ),
+                          child: Icon(
+                            Icons.brightness_7_outlined,
+                            color: isDark
+                                ? Colors.amber.shade300
+                                : Theme.of(context).colorScheme.primary,
+                            size: 22,
+                          ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: FeliVetUi.spaceMd),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2233,16 +2035,16 @@ class _TriageScreenState extends State<TriageScreen> {
                                 'Display Theme',
                                 style: FeliVetUi.heading(context, size: 18),
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: FeliVetUi.spaceXs),
                               Text(
                                 isDark
                                     ? 'Dark mode enabled'
                                     : 'Light mode enabled',
                                 style: TextStyle(
-                                  fontSize: 13,
-                                  color: isDark
-                                      ? FeliVetUi.mutedDark
-                                      : FeliVetUi.mutedLight,
+                                  fontSize: 12,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -2256,10 +2058,10 @@ class _TriageScreenState extends State<TriageScreen> {
                           },
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 300),
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.deepPurple.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(12),
+                            padding: const EdgeInsets.all(FeliVetUi.spaceSm),
+                            decoration: FeliVetUi.iconBadge(
+                              context,
+                              color: isDark ? Colors.amber : null,
                             ),
                             child: Icon(
                               isDark
@@ -2267,7 +2069,7 @@ class _TriageScreenState extends State<TriageScreen> {
                                   : Icons.light_mode_rounded,
                               color: isDark
                                   ? Colors.amber.shade300
-                                  : Colors.deepPurple,
+                                  : Theme.of(context).colorScheme.primary,
                               size: 24,
                             ),
                           ),
@@ -2277,64 +2079,59 @@ class _TriageScreenState extends State<TriageScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: FeliVetUi.spaceMd),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1F1F1F) : Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.deepPurple.withValues(
-                      alpha: isDark ? 0.25 : 0.16,
-                    ),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(
-                        alpha: isDark ? 0.25 : 0.05,
-                      ),
-                      blurRadius: 10,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
+                padding: FeliVetUi.cardPadding,
+                decoration: FeliVetUi.cardDecoration(context),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Icon(
-                          Icons.file_download_outlined,
-                          color: Colors.deepPurple,
-                          size: 22,
+                        Container(
+                          padding: const EdgeInsets.all(FeliVetUi.spaceSm),
+                          decoration: FeliVetUi.iconBadge(
+                            context,
+                            color: Colors.blueGrey,
+                          ),
+                          child: Icon(
+                            Icons.file_download_outlined,
+                            color: Colors.blueGrey,
+                            size: 22,
+                          ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: FeliVetUi.spaceMd),
                         Text(
                           'Report History',
                           style: FeliVetUi.heading(context, size: 18),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: FeliVetUi.spaceMd),
                     if (reportHistory.isEmpty)
                       Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: FeliVetUi.spaceXl,
+                        ),
                         child: Center(
                           child: Column(
                             children: [
-                              Icon(
-                                Icons.inbox_outlined,
-                                size: 48,
-                                color: Colors.grey.shade400,
+                              Container(
+                                padding: const EdgeInsets.all(
+                                  FeliVetUi.spaceSm,
+                                ),
+                                decoration: FeliVetUi.iconBadge(context),
+                                child: Icon(
+                                  Icons.inbox_outlined,
+                                  size: 28,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
                               ),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: FeliVetUi.spaceMd),
                               Text(
                                 'No reports available',
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 14,
-                                ),
+                                style: FeliVetUi.muted(context, size: 14),
                               ),
                             ],
                           ),
@@ -2346,23 +2143,29 @@ class _TriageScreenState extends State<TriageScreen> {
                           final fileName =
                               '${result.detectedDisease ?? "Analysis"}_${result.timestamp.day}-${result.timestamp.month}-${result.timestamp.year}.pdf';
                           return Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.only(
+                              bottom: FeliVetUi.spaceSm,
+                            ),
                             child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? Colors.black.withValues(alpha: 0.3)
-                                    : Colors.grey.shade50,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+                              padding: const EdgeInsets.all(FeliVetUi.spaceMd),
+                              decoration: FeliVetUi.cardDecoration(context),
                               child: Row(
                                 children: [
-                                  Icon(
-                                    Icons.picture_as_pdf_outlined,
-                                    color: const Color(0xFFE0402C),
-                                    size: 20,
+                                  Container(
+                                    padding: const EdgeInsets.all(
+                                      FeliVetUi.spaceSm,
+                                    ),
+                                    decoration: FeliVetUi.iconBadge(
+                                      context,
+                                      color: const Color(0xFFE0402C),
+                                    ),
+                                    child: const Icon(
+                                      Icons.picture_as_pdf_outlined,
+                                      color: Color(0xFFE0402C),
+                                      size: 20,
+                                    ),
                                   ),
-                                  const SizedBox(width: 10),
+                                  const SizedBox(width: FeliVetUi.spaceSm),
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment:
@@ -2375,16 +2178,18 @@ class _TriageScreenState extends State<TriageScreen> {
                                           style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w600,
-                                            color: isDark
-                                                ? Colors.white
-                                                : Colors.black87,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onSurface,
                                           ),
                                         ),
                                         Text(
                                           '${result.timestamp.day}/${result.timestamp.month}/${result.timestamp.year} ${result.timestamp.hour.toString().padLeft(2, '0')}:${result.timestamp.minute.toString().padLeft(2, '0')}',
                                           style: TextStyle(
                                             fontSize: 11,
-                                            color: Colors.grey.shade600,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onSurfaceVariant,
                                           ),
                                         ),
                                       ],
@@ -2396,13 +2201,17 @@ class _TriageScreenState extends State<TriageScreen> {
                                             true
                                         ? 'Open PDF'
                                         : 'Download PDF',
-                                    icon: Icon(
-                                      _pdfAvailability[_pdfKey(result)] == true
-                                          ? Icons.open_in_new_outlined
-                                          : Icons.download_outlined,
-                                      color: isDark
-                                          ? Colors.white
-                                          : Colors.black87,
+                                    icon: Container(
+                                      padding: const EdgeInsets.all(
+                                        FeliVetUi.spaceSm,
+                                      ),
+                                      decoration: FeliVetUi.iconBadge(context),
+                                      child: Icon(
+                                        _pdfAvailability[_pdfKey(result)] ==
+                                                true
+                                            ? Icons.open_in_new_outlined
+                                            : Icons.download_outlined,
+                                      ),
                                     ),
                                     onPressed: () async {
                                       AppSounds.playTap();
@@ -2456,73 +2265,58 @@ class _TriageScreenState extends State<TriageScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: FeliVetUi.spaceMd),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1F1F1F) : Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.deepPurple.withValues(
-                      alpha: isDark ? 0.25 : 0.16,
-                    ),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(
-                        alpha: isDark ? 0.25 : 0.05,
-                      ),
-                      blurRadius: 10,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
+                padding: FeliVetUi.cardPadding,
+                decoration: FeliVetUi.cardDecoration(context),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Icon(
-                          Icons.info_outline_rounded,
-                          color: Colors.deepPurple,
-                          size: 22,
+                        Container(
+                          padding: const EdgeInsets.all(FeliVetUi.spaceSm),
+                          decoration: FeliVetUi.iconBadge(context),
+                          child: Icon(
+                            Icons.info_outline_rounded,
+                            color: Theme.of(context).colorScheme.primary,
+                            size: 22,
+                          ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: FeliVetUi.spaceMd),
                         Text(
                           'About FeliVet Insight',
                           style: TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black87,
+                            fontWeight: FontWeight.w700,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: FeliVetUi.spaceSm),
                     Text(
                       'v1.0',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: isDark
-                            ? Colors.grey.shade300
-                            : Colors.grey.shade700,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: FeliVetUi.spaceXs),
                     Text(
                       'An intelligent AI-powered feline health triage system designed to help identify potential skin conditions and assess urgency through computer vision analysis.',
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.grey.shade600,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         height: 1.5,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: FeliVetUi.spaceXl),
             ],
           ),
         );
