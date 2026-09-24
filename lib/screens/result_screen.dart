@@ -663,6 +663,8 @@ class ResultScreen extends StatelessWidget {
                                         context: context,
                                         isDark: isDark,
                                         label: 'Detected Areas',
+                                        infoText:
+                                            'The spots on your cat\'s body where the scan found something worth a closer look.',
                                         value: '${result.detectionCount}',
                                         icon: Icons.grain_rounded,
                                         color: color,
@@ -674,6 +676,8 @@ class ResultScreen extends StatelessWidget {
                                         context: context,
                                         isDark: isDark,
                                         label: 'Symptoms',
+                                        infoText:
+                                            'Signs you told the app about or the scan noticed, like redness, hair loss, or itching.',
                                         value: '${result.symptomCount}',
                                         icon: Icons.checklist_rtl_rounded,
                                         color: color,
@@ -689,6 +693,8 @@ class ResultScreen extends StatelessWidget {
                                         context: context,
                                         isDark: isDark,
                                         label: 'Presence',
+                                        infoText:
+                                            'How much of this sign was found, from a small trace to a clear, strong sign.',
                                         value: result.presenceStatus.label,
                                         icon: Icons.fact_check_outlined,
                                         color: color,
@@ -701,6 +707,8 @@ class ResultScreen extends StatelessWidget {
                                         context: context,
                                         isDark: isDark,
                                         label: 'Clinical Risk',
+                                        infoText:
+                                            'Our rough estimate of how serious this could be, so you know whether to watch it or see a vet soon.',
                                         value:
                                             result.diseaseRisk?.label ?? 'N/A',
                                         icon: Icons.health_and_safety_outlined,
@@ -755,7 +763,7 @@ class ResultScreen extends StatelessWidget {
                                     ),
                                     const SizedBox(width: FeliVetUi.spaceSm),
                                     Text(
-                                      'Expert System Reasoning',
+                                      'Reasoning',
                                       style: TextStyle(
                                         fontSize: 12.5,
                                         fontWeight: FontWeight.bold,
@@ -766,18 +774,6 @@ class ResultScreen extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: FeliVetUi.spaceSm),
-                                Text(
-                                  result.reasoning,
-                                  style: TextStyle(
-                                    fontSize: 13.5,
-                                    height: 1.5,
-                                    color: isDark
-                                        ? Colors.grey.shade100
-                                        : Colors.black87,
-                                  ),
-                                ),
-                                const SizedBox(height: FeliVetUi.spaceMd),
                                 Container(
                                   padding: const EdgeInsets.all(
                                     FeliVetUi.spaceMd,
@@ -798,6 +794,17 @@ class ResultScreen extends StatelessWidget {
                                           ? Colors.white
                                           : Colors.black87,
                                     ),
+                                  ),
+                                ),
+                                const SizedBox(height: FeliVetUi.spaceSm),
+                                Text(
+                                  _reasoningSupportText(result),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    height: 1.35,
+                                    color: isDark
+                                        ? Colors.grey.shade300
+                                        : Colors.grey.shade700,
                                   ),
                                 ),
                               ],
@@ -937,6 +944,7 @@ class ResultScreen extends StatelessWidget {
     required BuildContext context,
     required bool isDark,
     required String label,
+    required String infoText,
     required String value,
     required IconData icon,
     required Color color,
@@ -948,32 +956,91 @@ class ResultScreen extends StatelessWidget {
         horizontal: FeliVetUi.spaceSm,
       ),
       decoration: FeliVetUi.cardDecoration(context),
-      child: Column(
+      child: Stack(
         children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(height: FeliVetUi.spaceSm),
-          Text(
-            value,
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: small ? 11.5 : 15,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black87,
+          SizedBox(
+            width: double.infinity,
+            child: Column(
+              children: [
+                Icon(icon, size: 16, color: color),
+                const SizedBox(height: FeliVetUi.spaceSm),
+                Text(
+                  value,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: small ? 11.5 : 15,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: FeliVetUi.spaceXs / 2),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: FeliVetUi.spaceXs / 2),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 10,
-              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+          Positioned(
+            top: 4,
+            right: 4,
+            child: SizedBox(
+              width: 18,
+              height: 18,
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                tooltip: 'About $label',
+                icon: const Icon(Icons.info_outline, size: 16),
+                color: color,
+                onPressed: () => _showInfoDialog(context, label, infoText),
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  void _showInfoDialog(BuildContext context, String title, String explanation) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.info_outline),
+            const SizedBox(width: 8),
+            Expanded(child: Text(title)),
+          ],
+        ),
+        content: Text(explanation),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _reasoningSupportText(TriageResult result) {
+    final confidence = result.confidence == null
+        ? 'confidence is unavailable'
+        : '${(result.confidence! * 100).toStringAsFixed(0)}% confidence';
+    final risk = result.diseaseRisk == null
+        ? 'clinical risk could not be estimated'
+        : '${result.diseaseRisk!.label.toLowerCase()} clinical risk';
+    final symptoms = result.symptomCount == 0
+        ? 'no symptoms were reported'
+        : '${result.symptomCount} symptom${result.symptomCount == 1 ? '' : 's'} were reported';
+
+    return 'The scan found ${result.detectionCount} area${result.detectionCount == 1 ? '' : 's'} with ${result.evidenceStrength.label.toLowerCase()} visual evidence at $confidence. This is rated as $risk, and $symptoms.';
   }
 }

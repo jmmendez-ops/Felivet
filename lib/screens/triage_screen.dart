@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -16,10 +18,12 @@ import '../core/ui_tokens.dart';
 import '../models/cat_profile.dart';
 import '../models/triage_models.dart';
 import '../services/cat_profile_storage.dart';
+import '../services/cat_gatekeeper.dart';
 import '../services/history_storage.dart';
 import '../services/symptom_intake_service.dart';
 import '../services/triage_engine.dart';
 import '../services/pdf_report_service.dart';
+import '../widgets/follow_up_reminder_panel.dart';
 import 'history_screen.dart';
 import 'result_screen.dart';
 import 'triage_submission_validator.dart';
@@ -64,6 +68,7 @@ class _TriageScreenState extends State<TriageScreen> {
   final ImagePicker _picker = ImagePicker();
 
   FlutterVision? _vision;
+  final CatGatekeeper _catGatekeeper = CatGatekeeper();
   bool _isModelLoaded = false;
   bool _isScanning = false;
   String? _loadError;
@@ -78,10 +83,12 @@ class _TriageScreenState extends State<TriageScreen> {
   CatProfile? _activeProfile;
   int _selectedIndex = 0;
   String? _imageQualityMessage;
+  int? _selectedTrendIndex;
 
   @override
   void initState() {
     super.initState();
+    _loadCatGatekeeper();
     _loadModel();
     _loadProfiles();
     _loadHistory();
@@ -100,6 +107,14 @@ class _TriageScreenState extends State<TriageScreen> {
       _hideLatestImage = false;
       _image = _latestActiveImage;
     });
+  }
+
+  Future<void> _loadCatGatekeeper() async {
+    try {
+      await _catGatekeeper.load();
+    } catch (error, stackTrace) {
+      debugPrint('Cat gatekeeper failed to load: $error\n$stackTrace');
+    }
   }
 
   Future<void> _loadHistory() async {
@@ -507,6 +522,7 @@ class _TriageScreenState extends State<TriageScreen> {
   @override
   void dispose() {
     _vision?.closeYoloModel();
+    _catGatekeeper.close();
     super.dispose();
   }
 
@@ -767,6 +783,35 @@ class _TriageScreenState extends State<TriageScreen> {
       final List<DiseaseEvidence> evidenceList = [];
       if (_image != null && _isModelLoaded) {
         final prepared = await _prepareImageForInference(_image!);
+
+        try {
+          final score = await _catGatekeeper.catScore(prepared.bytes);
+          debugPrint('Cat gatekeeper score: $score');
+          if (score < CatGatekeeper.catThreshold) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'No cat detected. Please upload a clear photo of a cat.',
+                ),
+              ),
+            );
+            setState(() => _isScanning = false);
+            return;
+          }
+        } catch (error, stackTrace) {
+          debugPrint('Cat gatekeeper failed: $error\n$stackTrace');
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Could not check the image. Please try another photo.',
+              ),
+            ),
+          );
+          setState(() => _isScanning = false);
+          return;
+        }
 
         final List<dynamic> rawResults = await _vision!.yoloOnImage(
           bytesList: prepared.bytes,
@@ -1152,97 +1197,118 @@ class _TriageScreenState extends State<TriageScreen> {
                   ),
                 )
               else
-                SizedBox(
-                  height: 108,
-                  child: LineChart(
-                    LineChartData(
-                      gridData: FlGridData(
-                        show: true,
-                        drawHorizontalLine: true,
-                        drawVerticalLine: false,
-                        horizontalInterval: 1,
-                        getDrawingHorizontalLine: (value) => FlLine(
-                          color: isDark
-                              ? Colors.white.withValues(alpha: 0.08)
-                              : Colors.grey.shade300,
-                          strokeWidth: 1,
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: SizedBox(
+                    width: math.max(280.0, trendSpots.length * 72.0),
+                    height: 132,
+                    child: LineChart(
+                      LineChartData(
+                        gridData: FlGridData(
+                          show: true,
+                          drawHorizontalLine: true,
+                          drawVerticalLine: false,
+                          horizontalInterval: 1,
+                          getDrawingHorizontalLine: (value) => FlLine(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.08)
+                                : Colors.grey.shade300,
+                            strokeWidth: 1,
+                          ),
                         ),
-                      ),
-                      borderData: FlBorderData(show: false),
-                      titlesData: FlTitlesData(
-                        show: true,
-                        topTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
+                        borderData: FlBorderData(show: false),
+                        titlesData: FlTitlesData(
+                          show: true,
+                          topTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          leftTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          rightTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          bottomTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
                         ),
-                        leftTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                        rightTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 22,
-                            getTitlesWidget: (value, meta) {
-                              final index = value.round();
-                              if (index < 0 ||
-                                  index >= historyForTrend.length ||
-                                  !shouldShowTrendDateLabel(
-                                    index,
-                                    historyForTrend.length,
-                                  )) {
-                                return const SizedBox.shrink();
-                              }
-                              final date = historyForTrend[index].timestamp;
-                              return SideTitleWidget(
-                                axisSide: meta.axisSide,
-                                child: Text(
-                                  '${date.month}/${date.day}',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: isDark
-                                        ? Colors.grey.shade400
-                                        : Colors.grey.shade600,
+                        lineBarsData: [
+                          LineChartBarData(
+                            spots: trendSpots,
+                            isCurved: true,
+                            color: Theme.of(context).colorScheme.primary,
+                            barWidth: 3,
+                            dotData: FlDotData(
+                              show: true,
+                              getDotPainter: (spot, percent, barData, index) {
+                                final urgencyColor =
+                                    historyForTrend[index].urgency.color;
+                                return FlDotCirclePainter(
+                                  radius: _selectedTrendIndex == index ? 6 : 5,
+                                  color: urgencyColor,
+                                  strokeWidth: _selectedTrendIndex == index
+                                      ? 3
+                                      : 1.5,
+                                  strokeColor: _selectedTrendIndex == index
+                                      ? Theme.of(context).colorScheme.primary
+                                      : isDark
+                                      ? Colors.white
+                                      : Colors.black26,
+                                );
+                              },
+                            ),
+                            belowBarData: BarAreaData(
+                              show: true,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.primary.withValues(alpha: 0.16),
+                            ),
+                          ),
+                        ],
+                        minY: 0.8,
+                        maxY: 3.2,
+                        lineTouchData: LineTouchData(
+                          enabled: true,
+                          handleBuiltInTouches: false,
+                          touchCallback: (event, response) {
+                            if (!event.isInterestedForInteractions ||
+                                response?.lineBarSpots == null ||
+                                response!.lineBarSpots!.isEmpty) {
+                              return;
+                            }
+                            final index =
+                                response.lineBarSpots!.first.spotIndex;
+                            if (index < 0 || index >= historyForTrend.length) {
+                              return;
+                            }
+                            setState(() => _selectedTrendIndex = index);
+                            final scan = historyForTrend[index];
+                            showModalBottomSheet<void>(
+                              context: context,
+                              builder: (sheetContext) => SafeArea(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(
+                                    FeliVetUi.spaceLg,
+                                  ),
+                                  child: ListTile(
+                                    leading: Icon(
+                                      Icons.event_outlined,
+                                      color: scan.urgency.color,
+                                    ),
+                                    title: Text(
+                                      '${scan.timestamp.day}/${scan.timestamp.month}/${scan.timestamp.year}',
+                                    ),
+                                    subtitle: Text(
+                                      '${scan.urgency.label} · ${scan.detectedDisease ?? 'No condition detected'}',
+                                    ),
                                   ),
                                 ),
-                              );
-                            },
-                          ),
+                              ),
+                            );
+                          },
                         ),
                       ),
-                      lineBarsData: [
-                        LineChartBarData(
-                          spots: trendSpots,
-                          isCurved: true,
-                          color: Theme.of(context).colorScheme.primary,
-                          barWidth: 3,
-                          dotData: FlDotData(
-                            show: true,
-                            getDotPainter: (spot, percent, barData, index) {
-                              final urgencyColor =
-                                  historyForTrend[index].urgency.color;
-                              return FlDotCirclePainter(
-                                radius: 4,
-                                color: urgencyColor,
-                                strokeWidth: 1.5,
-                                strokeColor: isDark
-                                    ? Colors.white
-                                    : Colors.black26,
-                              );
-                            },
-                          ),
-                          belowBarData: BarAreaData(
-                            show: true,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.primary.withValues(alpha: 0.16),
-                          ),
-                        ),
-                      ],
-                      minY: 0.8,
-                      maxY: 3.2,
-                      lineTouchData: LineTouchData(enabled: false),
                     ),
                   ),
                 ),
@@ -2053,8 +2119,9 @@ class _TriageScreenState extends State<TriageScreen> {
                         GestureDetector(
                           onTap: () {
                             AppSounds.playTap();
-                            isDarkModeNotifier.value =
-                                !isDarkModeNotifier.value;
+                            final nextValue = !isDarkModeNotifier.value;
+                            isDarkModeNotifier.value = nextValue;
+                            saveDarkMode(nextValue);
                           },
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 300),
@@ -2079,6 +2146,8 @@ class _TriageScreenState extends State<TriageScreen> {
                   ],
                 ),
               ),
+              const SizedBox(height: FeliVetUi.spaceMd),
+              FollowUpReminderPanel(catName: _activeProfile?.name),
               const SizedBox(height: FeliVetUi.spaceMd),
               Container(
                 width: double.infinity,
