@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../core/app_state.dart';
 import '../core/ui_tokens.dart';
 
 class DiseaseInfoScreen extends StatelessWidget {
@@ -85,155 +84,137 @@ class DiseaseInfoScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: isDarkModeNotifier,
-      builder: (context, isDark, child) {
-        final normalizedDisease = diseaseName.toLowerCase();
-        final info =
-            _infoByDisease[normalizedDisease] ?? _infoByDisease['scabies']!;
-        final color = Theme.of(context).colorScheme.primary;
+    final normalizedDisease = diseaseName.toLowerCase();
+    const isDark = true;
+    final info =
+        _infoByDisease[normalizedDisease] ?? _infoByDisease['scabies']!;
+    final color = Theme.of(context).colorScheme.primary;
 
-        return Scaffold(
-          appBar: AppBar(title: Text(diseaseName)),
-          body: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: isDark
-                    ? [
-                        Theme.of(context).colorScheme.surface,
-                        Theme.of(context).scaffoldBackgroundColor,
-                      ]
-                    : [
-                        color.withValues(alpha: 0.08),
-                        Theme.of(context).scaffoldBackgroundColor,
-                      ],
-              ),
+    return Scaffold(
+      appBar: AppBar(title: Text(diseaseName)),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Theme.of(context).colorScheme.surface,
+              Theme.of(context).scaffoldBackgroundColor,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              FeliVetUi.spaceLg,
+              FeliVetUi.spaceLg,
+              FeliVetUi.spaceLg,
+              FeliVetUi.spaceXl,
             ),
-            child: SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(
-                  FeliVetUi.spaceLg,
-                  FeliVetUi.spaceLg,
-                  FeliVetUi.spaceLg,
-                  FeliVetUi.spaceXl,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: double.infinity,
-                      padding: FeliVetUi.cardPadding,
-                      decoration: FeliVetUi.cardDecoration(
-                        context,
-                        elevated: true,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: FeliVetUi.cardPadding,
+                  decoration: FeliVetUi.cardDecoration(context, elevated: true),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(
-                                  FeliVetUi.spaceSm,
-                                ),
-                                decoration: FeliVetUi.iconBadge(
-                                  context,
-                                  color: color,
-                                ),
-                                child: Icon(
-                                  Icons.medical_information_outlined,
-                                  color: color,
-                                ),
-                              ),
-                              const SizedBox(width: FeliVetUi.spaceMd),
-                              Expanded(
-                                child: Text(
-                                  diseaseName,
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurface,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: FeliVetUi.spaceMd),
-                          Text(
-                            info.description,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
-                              height: 1.5,
+                          Container(
+                            padding: const EdgeInsets.all(FeliVetUi.spaceSm),
+                            decoration: FeliVetUi.iconBadge(
+                              context,
+                              color: color,
+                            ),
+                            child: Icon(
+                              Icons.medical_information_outlined,
+                              color: color,
                             ),
                           ),
-                          const SizedBox(height: FeliVetUi.spaceMd),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              _buildBadge('Veterinary care', color, isDark),
-                              _buildBadge('Contagion info', color, isDark),
-                              _buildBadge('Home care', color, isDark),
-                            ],
+                          const SizedBox(width: FeliVetUi.spaceMd),
+                          Expanded(
+                            child: Text(
+                              diseaseName,
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: FeliVetUi.spaceMd),
-                    _buildSection(
-                      context,
-                      'Common symptoms',
-                      Icons.healing_outlined,
-                      info.symptoms,
-                      color,
-                      isDark,
-                    ),
-                    _buildSection(
-                      context,
-                      'Likely causes',
-                      Icons.psychology_outlined,
-                      info.causes,
-                      color,
-                      isDark,
-                    ),
-                    _buildSection(
-                      context,
-                      'Contagious status',
-                      Icons.warning_amber_rounded,
-                      [info.contagiousStatus],
-                      color,
-                      isDark,
-                    ),
-                    _buildSection(
-                      context,
-                      'Home care',
-                      Icons.home_repair_service_outlined,
-                      info.homeCare,
-                      color,
-                      isDark,
-                    ),
-                    _buildSection(
-                      context,
-                      'Veterinary advice',
-                      Icons.local_hospital_outlined,
-                      info.veterinaryAdvice,
-                      color,
-                      isDark,
-                    ),
-                  ],
+                      const SizedBox(height: FeliVetUi.spaceMd),
+                      Text(
+                        info.description,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: FeliVetUi.spaceMd),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _buildBadge('Veterinary care', color, isDark),
+                          _buildBadge('Contagion info', color, isDark),
+                          _buildBadge('Home care', color, isDark),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+                const SizedBox(height: FeliVetUi.spaceMd),
+                _buildSection(
+                  context,
+                  'Common symptoms',
+                  Icons.healing_outlined,
+                  info.symptoms,
+                  color,
+                  isDark,
+                ),
+                _buildSection(
+                  context,
+                  'Likely causes',
+                  Icons.psychology_outlined,
+                  info.causes,
+                  color,
+                  isDark,
+                ),
+                _buildSection(
+                  context,
+                  'Contagious status',
+                  Icons.warning_amber_rounded,
+                  [info.contagiousStatus],
+                  color,
+                  isDark,
+                ),
+                _buildSection(
+                  context,
+                  'Home care',
+                  Icons.home_repair_service_outlined,
+                  info.homeCare,
+                  color,
+                  isDark,
+                ),
+                _buildSection(
+                  context,
+                  'Veterinary advice',
+                  Icons.local_hospital_outlined,
+                  info.veterinaryAdvice,
+                  color,
+                  isDark,
+                ),
+              ],
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 

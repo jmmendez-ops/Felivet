@@ -21,23 +21,25 @@ class FeliVetUi {
     bool accent = false,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
     return BoxDecoration(
       color: Theme.of(context).cardColor,
       borderRadius: BorderRadius.circular(cardRadius),
-      border: accent
-          ? Border.all(
-              color: Theme.of(
-                context,
-              ).colorScheme.primary.withValues(alpha: 0.2),
-            )
-          : null,
+      border: Border.all(
+        color: accent
+            ? scheme.primary.withValues(alpha: 0.2)
+            : isDark
+            ? scheme.outlineVariant.withValues(alpha: 0.4)
+            : Colors.transparent,
+      ),
       boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: isDark ? 0.24 : 0.08),
-          blurRadius: elevated ? 12 : 9,
-          spreadRadius: 0,
-          offset: Offset(0, elevated ? 4 : 3),
-        ),
+        if (!isDark)
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: elevated ? 12 : 9,
+            spreadRadius: 0,
+            offset: Offset(0, elevated ? 4 : 3),
+          ),
       ],
     );
   }
@@ -53,9 +55,17 @@ class FeliVetUi {
   static BoxDecoration emptyState(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return BoxDecoration(
-      color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white,
+      color: isDark
+          ? Theme.of(context).colorScheme.surfaceContainerHighest
+          : Colors.white,
       borderRadius: BorderRadius.circular(cardRadius),
-      border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300),
+      border: Border.all(
+        color: isDark
+            ? Theme.of(
+                context,
+              ).colorScheme.outlineVariant.withValues(alpha: 0.4)
+            : Colors.grey.shade300,
+      ),
     );
   }
 
@@ -65,7 +75,7 @@ class FeliVetUi {
       fontWeight: FontWeight.w700,
       letterSpacing: 0,
       color: Theme.of(context).brightness == Brightness.dark
-          ? Colors.white
+          ? Theme.of(context).colorScheme.onSurface
           : Colors.black87,
     );
   }
@@ -75,7 +85,7 @@ class FeliVetUi {
       fontSize: size.clamp(10, 13),
       height: 1.25,
       color: Theme.of(context).brightness == Brightness.dark
-          ? mutedDark
+          ? Theme.of(context).colorScheme.onSurfaceVariant
           : mutedLight,
     );
   }

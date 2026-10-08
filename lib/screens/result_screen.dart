@@ -3,14 +3,30 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
-import '../core/app_state.dart';
 import '../core/sound_utils.dart';
 import '../core/ui_tokens.dart';
 import '../models/triage_models.dart';
 import '../services/pdf_report_service.dart';
 import 'disease_info_screen.dart';
 
-class ResultScreen extends StatelessWidget {
+String reasoningSupportText(TriageResult result) {
+  final confidence = result.confidence == null
+      ? '(confidence unavailable)'
+      : 'at ${(result.confidence! * 100).toStringAsFixed(0)}% confidence';
+  final riskSentence = result.diseaseRisk == null
+      ? 'Clinical risk could not be estimated'
+      : 'This is rated as ${result.diseaseRisk!.label.toLowerCase()}';
+  final symptoms = result.symptomCount == 0
+      ? '0 symptoms were reported'
+      : '${result.symptomCount} symptom${result.symptomCount == 1 ? '' : 's'} '
+            '${result.symptomCount == 1 ? 'was' : 'were'} reported';
+
+  return 'The scan found ${result.detectionCount} area${result.detectionCount == 1 ? '' : 's'} '
+      'with ${result.evidenceStrength.label.toLowerCase()} $confidence. '
+      '$riskSentence, and $symptoms.';
+}
+
+class ResultScreen extends StatefulWidget {
   final TriageResult result;
   final List<TriageResult> history;
   final Future<void> Function(TriageResult entry)? onDeleteHistoryEntry;
@@ -23,6 +39,15 @@ class ResultScreen extends StatelessWidget {
     this.onDeleteHistoryEntry,
     this.onClearHistory,
   });
+
+  @override
+  State<ResultScreen> createState() => _ResultScreenState();
+}
+
+class _ResultScreenState extends State<ResultScreen> {
+  bool _showDetails = false;
+
+  TriageResult get result => widget.result;
 
   void _showPhotoPopup(BuildContext context, File image) {
     AppSounds.playTap();
@@ -85,13 +110,11 @@ class ResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: isDarkModeNotifier,
-      builder: (context, isDark, child) {
-        final color = _urgencyColor(result.urgency);
-        final icon = _urgencyIcon(result.urgency);
+    final color = _urgencyColor(result.urgency);
+    final icon = _urgencyIcon(result.urgency);
+    const isDark = true;
 
-        return Scaffold(
+    return Scaffold(
           extendBodyBehindAppBar: false,
           appBar: AppBar(
             backgroundColor: color,
@@ -144,48 +167,10 @@ class ResultScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (result.isLowQuality)
-                      Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.only(
-                          bottom: FeliVetUi.spaceMd,
-                        ),
-                        padding: const EdgeInsets.all(FeliVetUi.spaceMd),
-                        decoration: FeliVetUi.cardDecoration(context),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(
-                              Icons.warning_amber_rounded,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
-                              size: 18,
-                            ),
-                            const SizedBox(width: FeliVetUi.spaceSm),
-                            Expanded(
-                              child: Text(
-                                'This scan used a lower-quality photo. Results may be less reliable — consider retaking the image for a clearer analysis.',
-                                style: TextStyle(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
-                                  fontSize: 12.5,
-                                  height: 1.4,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                     Container(
                           width: double.infinity,
                           padding: FeliVetUi.cardPadding,
-                          decoration: FeliVetUi.cardDecoration(
-                            context,
-                            elevated: true,
-                          ),
+                          decoration: _resultCardDecoration(context),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -258,14 +243,11 @@ class ResultScreen extends StatelessWidget {
                         onTap: () => _showPhotoPopup(context, result.image!),
                         child: Container(
                           width: double.infinity,
-                          height: 220,
+                          height: 180,
                           margin: const EdgeInsets.only(
                             bottom: FeliVetUi.spaceMd,
                           ),
-                          decoration: FeliVetUi.cardDecoration(
-                            context,
-                            elevated: true,
-                          ),
+                          decoration: _resultCardDecoration(context),
                           child: Stack(
                             fit: StackFit.expand,
                             children: [
@@ -329,7 +311,7 @@ class ResultScreen extends StatelessWidget {
                     Container(
                       width: double.infinity,
                       padding: FeliVetUi.cardPadding,
-                      decoration: FeliVetUi.cardDecoration(context),
+                      decoration: _resultCardDecoration(context),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -416,7 +398,43 @@ class ResultScreen extends StatelessWidget {
                             ],
                           ),
                           const SizedBox(height: FeliVetUi.spaceLg),
-                          if (result.comparisonTrend != null &&
+                          if (result.isLowQuality)
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(FeliVetUi.spaceMd),
+                              margin: const EdgeInsets.only(
+                                bottom: FeliVetUi.spaceMd,
+                              ),
+                              decoration: _resultCardDecoration(context),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(
+                                    Icons.warning_amber_rounded,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: FeliVetUi.spaceSm),
+                                  Expanded(
+                                    child: Text(
+                                      'This scan used a lower-quality photo. Results may be less reliable — consider retaking the image for a clearer analysis.',
+                                      style: TextStyle(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
+                                        fontSize: 12.5,
+                                        height: 1.4,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          if (_showDetails &&
+                              result.comparisonTrend != null &&
                               result.comparisonSummary != null) ...[
                             Container(
                               width: double.infinity,
@@ -456,7 +474,24 @@ class ResultScreen extends StatelessWidget {
                             ),
                           ],
                           const SizedBox(height: FeliVetUi.spaceLg),
-                          if (result.urgency == UrgencyLevel.high) ...[
+                          if (result.urgency != UrgencyLevel.stable)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                bottom: FeliVetUi.spaceMd,
+                              ),
+                              child: Text(
+                                result.urgency == UrgencyLevel.high
+                                    ? 'Please seek urgent veterinary care.'
+                                    : 'Please consult a vet soon.',
+                                style: TextStyle(
+                                  color: color,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          if (_showDetails &&
+                              result.urgency == UrgencyLevel.high)
                             Container(
                               width: double.infinity,
                               padding: const EdgeInsets.all(FeliVetUi.spaceMd),
@@ -498,8 +533,7 @@ class ResultScreen extends StatelessWidget {
                                 ],
                               ),
                             ),
-                          ],
-                          if (result.detectedDisease != null)
+                          if (_showDetails && result.detectedDisease != null)
                             Padding(
                               padding: const EdgeInsets.only(
                                 bottom: FeliVetUi.spaceMd,
@@ -517,299 +551,308 @@ class ResultScreen extends StatelessWidget {
                                 label: const Text('View disease information'),
                               ),
                             ),
-                          Container(
-                            width: double.infinity,
-                            padding: FeliVetUi.cardPadding,
-                            decoration: FeliVetUi.cardDecoration(context),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.analytics_outlined,
-                                      size: 15,
-                                      color: isDark
-                                          ? Colors.grey.shade400
-                                          : Colors.grey.shade600,
-                                    ),
-                                    const SizedBox(width: FeliVetUi.spaceSm),
-                                    Expanded(
-                                      child: Text(
-                                        'Evidence Analysis',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: 12.5,
-                                          fontWeight: FontWeight.bold,
-                                          color: isDark
-                                              ? Colors.grey.shade300
-                                              : Colors.grey.shade700,
+                          if (_showDetails)
+                            Container(
+                              width: double.infinity,
+                              padding: FeliVetUi.cardPadding,
+                              decoration: _resultCardDecoration(context),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.analytics_outlined,
+                                        size: 15,
+                                        color: isDark
+                                            ? Colors.grey.shade400
+                                            : Colors.grey.shade600,
+                                      ),
+                                      const SizedBox(width: FeliVetUi.spaceSm),
+                                      Expanded(
+                                        child: Text(
+                                          'Evidence Analysis',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: isDark
+                                                ? Colors.grey.shade300
+                                                : Colors.grey.shade700,
+                                          ),
                                         ),
                                       ),
+                                      const SizedBox(width: FeliVetUi.spaceSm),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: FeliVetUi.spaceSm,
+                                          vertical: FeliVetUi.spaceXs,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: color.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          result.evidenceStrength.label,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: color,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: FeliVetUi.spaceMd),
+                                  Wrap(
+                                    spacing: FeliVetUi.spaceSm,
+                                    runSpacing: FeliVetUi.spaceSm,
+                                    children: [
+                                      _buildInfoPill(
+                                        icon: Icons.insights_rounded,
+                                        label: result.confidence != null
+                                            ? '${(result.confidence! * 100).toStringAsFixed(0)}% confidence'
+                                            : 'Confidence pending',
+                                        color: color,
+                                        isDark: isDark,
+                                      ),
+                                      _buildInfoPill(
+                                        icon: Icons.checklist_rtl_rounded,
+                                        label:
+                                            '${result.symptomCount} symptom${result.symptomCount == 1 ? '' : 's'} selected',
+                                        color: color,
+                                        isDark: isDark,
+                                      ),
+                                      _buildInfoPill(
+                                        icon: Icons.health_and_safety_outlined,
+                                        label:
+                                            result.diseaseRisk?.label ??
+                                            'Clinical risk pending',
+                                        color: color,
+                                        isDark: isDark,
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: FeliVetUi.spaceMd),
+                                  if (result.confidence != null) ...[
+                                    Wrap(
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
+                                      spacing: FeliVetUi.spaceSm,
+                                      runSpacing: FeliVetUi.spaceXs / 2,
+                                      children: [
+                                        Text(
+                                          'Model Confidence',
+                                          style: TextStyle(
+                                            fontSize: 12.5,
+                                            color: isDark
+                                                ? Colors.grey.shade400
+                                                : Colors.grey.shade600,
+                                          ),
+                                        ),
+                                        Text(
+                                          "${(result.confidence! * 100).toStringAsFixed(0)}%"
+                                          "${result.confidenceLevel != null ? ' · ${result.confidenceLevel!.label}' : ''}",
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold,
+                                            color: color,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(width: FeliVetUi.spaceSm),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: FeliVetUi.spaceSm,
-                                        vertical: FeliVetUi.spaceXs,
+                                    const SizedBox(height: FeliVetUi.spaceSm),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: LinearProgressIndicator(
+                                        value: result.confidence,
+                                        minHeight: 8,
+                                        backgroundColor: isDark
+                                            ? Colors.grey.shade800
+                                            : Colors.grey.shade200,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              color,
+                                            ),
                                       ),
-                                      decoration: BoxDecoration(
-                                        color: color.withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    const SizedBox(height: FeliVetUi.spaceXs),
+                                    Text(
+                                      'Confidence reflects how sure the AI is about this prediction — not how severe the condition is.',
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontStyle: FontStyle.italic,
+                                        color: isDark
+                                            ? Colors.grey.shade500
+                                            : Colors.grey.shade600,
                                       ),
-                                      child: Text(
-                                        result.evidenceStrength.label,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.bold,
+                                    ),
+                                    const SizedBox(height: FeliVetUi.spaceMd),
+                                  ],
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _statTile(
+                                          context: context,
+                                          isDark: isDark,
+                                          label: 'Detected Areas',
+                                          infoText:
+                                              'The spots on your cat\'s body where the scan found something worth a closer look.',
+                                          value: '${result.detectionCount}',
+                                          icon: Icons.grain_rounded,
                                           color: color,
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: FeliVetUi.spaceMd),
-                                Wrap(
-                                  spacing: FeliVetUi.spaceSm,
-                                  runSpacing: FeliVetUi.spaceSm,
-                                  children: [
-                                    _buildInfoPill(
-                                      icon: Icons.insights_rounded,
-                                      label: result.confidence != null
-                                          ? '${(result.confidence! * 100).toStringAsFixed(0)}% confidence'
-                                          : 'Confidence pending',
-                                      color: color,
-                                      isDark: isDark,
-                                    ),
-                                    _buildInfoPill(
-                                      icon: Icons.checklist_rtl_rounded,
-                                      label:
-                                          '${result.symptomCount} symptom${result.symptomCount == 1 ? '' : 's'} selected',
-                                      color: color,
-                                      isDark: isDark,
-                                    ),
-                                    _buildInfoPill(
-                                      icon: Icons.health_and_safety_outlined,
-                                      label:
-                                          result.diseaseRisk?.label ??
-                                          'Clinical risk pending',
-                                      color: color,
-                                      isDark: isDark,
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: FeliVetUi.spaceMd),
-                                if (result.confidence != null) ...[
-                                  Wrap(
-                                    crossAxisAlignment:
-                                        WrapCrossAlignment.center,
-                                    spacing: FeliVetUi.spaceSm,
-                                    runSpacing: FeliVetUi.spaceXs / 2,
-                                    children: [
-                                      Text(
-                                        'Model Confidence',
-                                        style: TextStyle(
-                                          fontSize: 12.5,
-                                          color: isDark
-                                              ? Colors.grey.shade400
-                                              : Colors.grey.shade600,
-                                        ),
-                                      ),
-                                      Text(
-                                        "${(result.confidence! * 100).toStringAsFixed(0)}%"
-                                        "${result.confidenceLevel != null ? ' · ${result.confidenceLevel!.label}' : ''}",
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.bold,
+                                      const SizedBox(width: FeliVetUi.spaceMd),
+                                      Expanded(
+                                        child: _statTile(
+                                          context: context,
+                                          isDark: isDark,
+                                          label: 'Symptoms',
+                                          infoText:
+                                              'Signs you told the app about or the scan noticed, like redness, hair loss, or itching.',
+                                          value: '${result.symptomCount}',
+                                          icon: Icons.checklist_rtl_rounded,
                                           color: color,
                                         ),
                                       ),
                                     ],
                                   ),
                                   const SizedBox(height: FeliVetUi.spaceSm),
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(6),
-                                    child: LinearProgressIndicator(
-                                      value: result.confidence,
-                                      minHeight: 8,
-                                      backgroundColor: isDark
-                                          ? Colors.grey.shade800
-                                          : Colors.grey.shade200,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        color,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: FeliVetUi.spaceXs),
-                                  Text(
-                                    'Confidence reflects how sure the AI is about this prediction — not how severe the condition is.',
-                                    style: TextStyle(
-                                      fontSize: 10.5,
-                                      fontStyle: FontStyle.italic,
-                                      color: isDark
-                                          ? Colors.grey.shade500
-                                          : Colors.grey.shade600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: FeliVetUi.spaceMd),
-                                ],
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: _statTile(
-                                        context: context,
-                                        isDark: isDark,
-                                        label: 'Detected Areas',
-                                        infoText:
-                                            'The spots on your cat\'s body where the scan found something worth a closer look.',
-                                        value: '${result.detectionCount}',
-                                        icon: Icons.grain_rounded,
-                                        color: color,
-                                      ),
-                                    ),
-                                    const SizedBox(width: FeliVetUi.spaceMd),
-                                    Expanded(
-                                      child: _statTile(
-                                        context: context,
-                                        isDark: isDark,
-                                        label: 'Symptoms',
-                                        infoText:
-                                            'Signs you told the app about or the scan noticed, like redness, hair loss, or itching.',
-                                        value: '${result.symptomCount}',
-                                        icon: Icons.checklist_rtl_rounded,
-                                        color: color,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: FeliVetUi.spaceSm),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: _statTile(
-                                        context: context,
-                                        isDark: isDark,
-                                        label: 'Presence',
-                                        infoText:
-                                            'How much of this sign was found, from a small trace to a clear, strong sign.',
-                                        value: result.presenceStatus.label,
-                                        icon: Icons.fact_check_outlined,
-                                        color: color,
-                                        small: true,
-                                      ),
-                                    ),
-                                    const SizedBox(width: FeliVetUi.spaceMd),
-                                    Expanded(
-                                      child: _statTile(
-                                        context: context,
-                                        isDark: isDark,
-                                        label: 'Clinical Risk',
-                                        infoText:
-                                            'Our rough estimate of how serious this could be, so you know whether to watch it or see a vet soon.',
-                                        value:
-                                            result.diseaseRisk?.label ?? 'N/A',
-                                        icon: Icons.health_and_safety_outlined,
-                                        color: color,
-                                        small: true,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (result.isAmbiguous) ...[
-                                  const SizedBox(height: FeliVetUi.spaceMd),
                                   Row(
                                     children: [
-                                      Icon(
-                                        Icons.help_outline_rounded,
-                                        size: 14,
-                                        color: color,
-                                      ),
-                                      const SizedBox(width: FeliVetUi.spaceSm),
                                       Expanded(
-                                        child: Text(
-                                          'Classification is ambiguous between candidate conditions.',
-                                          style: TextStyle(
-                                            fontSize: 11.5,
-                                            fontStyle: FontStyle.italic,
-                                            color: isDark
-                                                ? Colors.grey.shade400
-                                                : Colors.grey.shade700,
-                                          ),
+                                        child: _statTile(
+                                          context: context,
+                                          isDark: isDark,
+                                          label: 'Presence',
+                                          infoText:
+                                              'How much of this sign was found, from a small trace to a clear, strong sign.',
+                                          value: result.presenceStatus.label,
+                                          icon: Icons.fact_check_outlined,
+                                          color: color,
+                                          small: true,
+                                        ),
+                                      ),
+                                      const SizedBox(width: FeliVetUi.spaceMd),
+                                      Expanded(
+                                        child: _statTile(
+                                          context: context,
+                                          isDark: isDark,
+                                          label: 'Clinical Risk',
+                                          infoText:
+                                              'Our rough estimate of how serious this could be, so you know whether to watch it or see a vet soon.',
+                                          value:
+                                              result.diseaseRisk?.label ??
+                                              'N/A',
+                                          icon:
+                                              Icons.health_and_safety_outlined,
+                                          color: color,
+                                          small: true,
                                         ),
                                       ),
                                     ],
                                   ),
-                                ],
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: FeliVetUi.spaceMd),
-                          Container(
-                            width: double.infinity,
-                            padding: FeliVetUi.cardPadding,
-                            decoration: FeliVetUi.cardDecoration(context),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.psychology_outlined,
-                                      size: 15,
-                                      color: color,
-                                    ),
-                                    const SizedBox(width: FeliVetUi.spaceSm),
-                                    Text(
-                                      'Reasoning',
-                                      style: TextStyle(
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDark
-                                            ? Colors.grey.shade200
-                                            : Colors.grey.shade700,
-                                      ),
+                                  if (result.isAmbiguous) ...[
+                                    const SizedBox(height: FeliVetUi.spaceMd),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.help_outline_rounded,
+                                          size: 14,
+                                          color: color,
+                                        ),
+                                        const SizedBox(
+                                          width: FeliVetUi.spaceSm,
+                                        ),
+                                        Expanded(
+                                          child: Text(
+                                            'Classification is ambiguous between candidate conditions.',
+                                            style: TextStyle(
+                                              fontSize: 11.5,
+                                              fontStyle: FontStyle.italic,
+                                              color: isDark
+                                                  ? Colors.grey.shade400
+                                                  : Colors.grey.shade700,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.all(
-                                    FeliVetUi.spaceMd,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: color.withValues(
-                                      alpha: isDark ? 0.15 : 0.08,
-                                    ),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    result.recommendation,
-                                    style: TextStyle(
-                                      fontSize: 13.5,
-                                      height: 1.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark
-                                          ? Colors.white
-                                          : Colors.black87,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: FeliVetUi.spaceSm),
-                                Text(
-                                  _reasoningSupportText(result),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    height: 1.35,
-                                    color: isDark
-                                        ? Colors.grey.shade300
-                                        : Colors.grey.shade700,
-                                  ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
+                          const SizedBox(height: FeliVetUi.spaceMd),
+                          if (_showDetails)
+                            Container(
+                              width: double.infinity,
+                              padding: FeliVetUi.cardPadding,
+                              decoration: _resultCardDecoration(context),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.psychology_outlined,
+                                        size: 15,
+                                        color: color,
+                                      ),
+                                      const SizedBox(width: FeliVetUi.spaceSm),
+                                      Text(
+                                        'Reasoning',
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark
+                                              ? Colors.grey.shade200
+                                              : Colors.grey.shade700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.all(
+                                      FeliVetUi.spaceMd,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: color.withValues(
+                                        alpha: isDark ? 0.15 : 0.08,
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      result.recommendation,
+                                      style: TextStyle(
+                                        fontSize: 13.5,
+                                        height: 1.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? Colors.white
+                                            : Colors.black87,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: FeliVetUi.spaceSm),
+                                  Text(
+                                    reasoningSupportText(result),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      height: 1.35,
+                                      color: isDark
+                                          ? Colors.grey.shade300
+                                          : Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           const SizedBox(height: FeliVetUi.spaceMd),
                           Row(
                             children: [
@@ -834,6 +877,32 @@ class ResultScreen extends StatelessWidget {
                                 ),
                               ),
                             ],
+                          ),
+                          const SizedBox(height: FeliVetUi.spaceMd),
+                          OutlinedButton.icon(
+                            onPressed: () =>
+                                setState(() => _showDetails = !_showDetails),
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(double.infinity, 44),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              side: BorderSide(
+                                color: Theme.of(context).colorScheme.outline,
+                              ),
+                            ),
+                            icon: Icon(
+                              _showDetails
+                                  ? Icons.expand_less
+                                  : Icons.expand_more,
+                              size: 18,
+                            ),
+                            label: Text(
+                              _showDetails ? 'Hide details' : 'View details',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -902,8 +971,26 @@ class ResultScreen extends StatelessWidget {
               ),
             ),
           ),
-        );
-      },
+    );
+  }
+
+  BoxDecoration _resultCardDecoration(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return BoxDecoration(
+      color: scheme.surface,
+      borderRadius: BorderRadius.circular(22),
+      boxShadow: [
+        BoxShadow(
+          color: scheme.shadow.withValues(alpha: 0.12),
+          blurRadius: 16,
+          offset: const Offset(0, 6),
+        ),
+        BoxShadow(
+          color: scheme.primary.withValues(alpha: 0.04),
+          blurRadius: 2,
+          spreadRadius: 1,
+        ),
+      ],
     );
   }
 
@@ -955,7 +1042,7 @@ class ResultScreen extends StatelessWidget {
         vertical: FeliVetUi.spaceSm,
         horizontal: FeliVetUi.spaceSm,
       ),
-      decoration: FeliVetUi.cardDecoration(context),
+      decoration: _resultCardDecoration(context),
       child: Stack(
         children: [
           SizedBox(
@@ -1030,17 +1117,4 @@ class ResultScreen extends StatelessWidget {
     );
   }
 
-  String _reasoningSupportText(TriageResult result) {
-    final confidence = result.confidence == null
-        ? 'confidence is unavailable'
-        : '${(result.confidence! * 100).toStringAsFixed(0)}% confidence';
-    final risk = result.diseaseRisk == null
-        ? 'clinical risk could not be estimated'
-        : '${result.diseaseRisk!.label.toLowerCase()} clinical risk';
-    final symptoms = result.symptomCount == 0
-        ? 'no symptoms were reported'
-        : '${result.symptomCount} symptom${result.symptomCount == 1 ? '' : 's'} were reported';
-
-    return 'The scan found ${result.detectionCount} area${result.detectionCount == 1 ? '' : 's'} with ${result.evidenceStrength.label.toLowerCase()} visual evidence at $confidence. This is rated as $risk, and $symptoms.';
-  }
 }
