@@ -8,6 +8,7 @@ import '../models/triage_models.dart';
 
 class PdfReportService {
   static const _reportVersion = 'v2';
+  static const _pageHorizontalMargin = 34.0;
   static const _purple = PdfColor.fromInt(0xFF512DA8);
   static const _darkText = PdfColor.fromInt(0xFF202124);
   static const _mutedText = PdfColor.fromInt(0xFF667085);
@@ -44,102 +45,108 @@ class PdfReportService {
         build: (_) => pw.FittedBox(
           fit: pw.BoxFit.scaleDown,
           alignment: pw.Alignment.topLeft,
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-            children: [
-              _header(date, time),
-              _sectionTitle('Pet Information'),
-              _card(
-                child: pw.Row(
-                  children: [
-                    pw.Expanded(child: _field('Pet Name', 'My Cat')),
-                    pw.Expanded(child: _field('Scan Date', date)),
-                    pw.Expanded(child: _field('Scan Time', time)),
-                  ],
-                ),
-              ),
-              pw.SizedBox(height: 10),
-              _sectionTitle('Scan Summary'),
-              _card(
-                background: _lightSurface,
-                child: pw.Row(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Expanded(
-                      flex: 2,
-                      child: _summaryValue(
-                        'Overall Urgency',
-                        result.urgency.label,
-                        valueColor: _urgencyColor(result.urgency),
-                      ),
-                    ),
-                    pw.Expanded(
-                      flex: 3,
-                      child: _summaryValue('Detected Condition', condition),
-                    ),
-                    pw.Expanded(
-                      flex: 1,
-                      child: _summaryValue('Confidence', confidence),
-                    ),
-                  ],
-                ),
-              ),
-              pw.SizedBox(height: 10),
-              _sectionTitle('Detected Skin Condition'),
-              _card(
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text(condition, style: _body(fontSize: 12, bold: true)),
-                    if (result.detectedDisease != null) ...[
-                      pw.SizedBox(height: 6),
-                      pw.Text(
-                        'Detection confidence: $confidence  |  Evidence: ${result.evidenceStrength.label}  |  Areas detected: ${result.detectionCount}',
-                        style: _body(fontSize: 9, color: _mutedText),
-                      ),
+          child: pw.SizedBox(
+            width: PdfPageFormat.a4.width - (_pageHorizontalMargin * 2),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+              children: [
+                _header(date, time),
+                _sectionTitle('Pet Information'),
+                _card(
+                  child: pw.Row(
+                    children: [
+                      pw.Expanded(child: _field('Pet Name', 'My Cat')),
+                      pw.Expanded(child: _field('Scan Date', date)),
+                      pw.Expanded(child: _field('Scan Time', time)),
                     ],
-                  ],
-                ),
-              ),
-              pw.SizedBox(height: 10),
-              _sectionTitle('Reported Symptoms'),
-              if (result.selectedSymptoms.isEmpty)
-                _card(child: pw.Text('No symptoms selected', style: _body()))
-              else
-                ...result.selectedSymptoms.map(
-                  (symptom) => _symptomCard(
-                    _symptomTitle(symptom),
-                    _symptomDescription(symptom),
                   ),
                 ),
-              pw.SizedBox(height: 10),
-              _sectionTitle('Recommendation'),
-              _card(
-                background: _lightSurface,
-                borderColor: _purple,
-                child: pw.Text(
-                  result.recommendation,
-                  style: _body(fontSize: 12),
+                pw.SizedBox(height: 10),
+                _sectionTitle('Scan Summary'),
+                _card(
+                  background: _lightSurface,
+                  child: pw.Row(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Expanded(
+                        flex: 2,
+                        child: _summaryValue(
+                          'Overall Urgency',
+                          result.urgency.label,
+                          valueColor: _urgencyColor(result.urgency),
+                        ),
+                      ),
+                      pw.Expanded(
+                        flex: 3,
+                        child: _summaryValue('Detected Condition', condition),
+                      ),
+                      pw.Expanded(
+                        flex: 1,
+                        child: _summaryValue('Confidence', confidence),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              pw.SizedBox(height: 10),
-              _sectionTitle('Analysis'),
-              _card(
-                child: pw.Text(result.reasoning, style: _body(fontSize: 12)),
-              ),
-              pw.SizedBox(height: 12),
-              pw.Container(
-                padding: const pw.EdgeInsets.all(10),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: _border),
-                  borderRadius: pw.BorderRadius.circular(6),
+                pw.SizedBox(height: 10),
+                _sectionTitle('Detected Skin Condition'),
+                _card(
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        condition,
+                        style: _body(fontSize: 12, bold: true),
+                      ),
+                      if (result.detectedDisease != null) ...[
+                        pw.SizedBox(height: 6),
+                        pw.Text(
+                          'Detection confidence: $confidence  |  Evidence: ${result.evidenceStrength.label}  |  Areas detected: ${result.detectionCount}',
+                          style: _body(fontSize: 9, color: _mutedText),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-                child: pw.Text(
-                  'FeliVet Insight is intended as a screening and informational tool and does not replace professional veterinary diagnosis or treatment. Consult a licensed veterinarian for medical concerns.',
-                  style: _body(fontSize: 8.5, color: _mutedText),
+                pw.SizedBox(height: 10),
+                _sectionTitle('Reported Symptoms'),
+                if (result.selectedSymptoms.isEmpty)
+                  _card(child: pw.Text('No symptoms selected', style: _body()))
+                else
+                  ...result.selectedSymptoms.map(
+                    (symptom) => _symptomCard(
+                      _symptomTitle(symptom),
+                      _symptomDescription(symptom),
+                    ),
+                  ),
+                pw.SizedBox(height: 10),
+                _sectionTitle('Recommendation'),
+                _card(
+                  background: _lightSurface,
+                  borderColor: _purple,
+                  child: pw.Text(
+                    result.recommendation,
+                    style: _body(fontSize: 12),
+                  ),
                 ),
-              ),
-            ],
+                pw.SizedBox(height: 10),
+                _sectionTitle('Analysis'),
+                _card(
+                  child: pw.Text(result.reasoning, style: _body(fontSize: 12)),
+                ),
+                pw.SizedBox(height: 12),
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(10),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: _border),
+                    borderRadius: pw.BorderRadius.circular(6),
+                  ),
+                  child: pw.Text(
+                    'FeliVet Insight is intended as a screening and informational tool and does not replace professional veterinary diagnosis or treatment. Consult a licensed veterinarian for medical concerns.',
+                    style: _body(fontSize: 8.5, color: _mutedText),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
