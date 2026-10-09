@@ -27,8 +27,11 @@ class PdfReportService {
     return File(filePath);
   }
 
-  static Future<File> generateScanReport(TriageResult result) async {
-    final file = await reportFileFor(result);
+  static Future<File> generateScanReport(
+    TriageResult result, {
+    File? outputFile,
+  }) async {
+    final file = outputFile ?? await reportFileFor(result);
     final pdf = pw.Document();
     final scanTime = result.timestamp.toLocal();
     final date = _date(scanTime);

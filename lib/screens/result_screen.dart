@@ -1,12 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+import 'package:open_filex/open_filex.dart';
 
 import '../core/sound_utils.dart';
-import '../core/ui_tokens.dart';
 import '../models/triage_models.dart';
-import '../services/pdf_report_service.dart';
+import '../services/report_service.dart';
 import 'disease_info_screen.dart';
 
 String reasoningSupportText(TriageResult result) {
@@ -31,6 +30,7 @@ class ResultScreen extends StatefulWidget {
   final List<TriageResult> history;
   final Future<void> Function(TriageResult entry)? onDeleteHistoryEntry;
   final Future<void> Function()? onClearHistory;
+  final void Function(ReportFile report)? onViewReports;
 
   const ResultScreen({
     super.key,
@@ -38,6 +38,7 @@ class ResultScreen extends StatefulWidget {
     required this.history,
     this.onDeleteHistoryEntry,
     this.onClearHistory,
+    this.onViewReports,
   });
 
   @override
@@ -46,12 +47,13 @@ class ResultScreen extends StatefulWidget {
 
 class _ResultScreenState extends State<ResultScreen> {
   bool _showDetails = false;
+  bool _isExporting = false;
 
   TriageResult get result => widget.result;
 
   void _showPhotoPopup(BuildContext context, File image) {
     AppSounds.playTap();
-    showDialog(
+    showDialog<void>(
       context: context,
       barrierColor: Colors.black87,
       builder: (_) => GestureDetector(
@@ -82,1039 +84,922 @@ class _ResultScreenState extends State<ResultScreen> {
     );
   }
 
-  Color _urgencyColor(UrgencyLevel u) {
-    switch (u) {
-      case UrgencyLevel.high:
-        return const Color(0xFFE0402C);
-      case UrgencyLevel.moderate:
-        return const Color(0xFFF2A93B);
-      case UrgencyLevel.stable:
-        return const Color(0xFF3FA85C);
-    }
-  }
-
-  IconData _urgencyIcon(UrgencyLevel u) {
-    switch (u) {
-      case UrgencyLevel.high:
-        return Icons.warning_rounded;
-      case UrgencyLevel.moderate:
-        return Icons.assignment_late_rounded;
-      case UrgencyLevel.stable:
-        return Icons.verified_rounded;
-    }
-  }
-
-  String _headerLabel() => result.detectedDisease != null
-      ? result.detectedDisease!.toUpperCase()
-      : 'No detected disease';
-
   @override
   Widget build(BuildContext context) {
-    final color = _urgencyColor(result.urgency);
-    final icon = _urgencyIcon(result.urgency);
-    const isDark = true;
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-          extendBodyBehindAppBar: false,
-          appBar: AppBar(
-            backgroundColor: color,
-            foregroundColor: Colors.white,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => Navigator.pop(context),
-            ),
-            title: const Text(
-              'Detection',
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
-            ),
-            centerTitle: false,
-            actions: [
-              IconButton(
-                tooltip: 'Analyze again',
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.refresh, color: Colors.white),
-              ),
-            ],
+      appBar: AppBar(
+        title: const Text('Detection'),
+        actions: [
+          IconButton(
+            tooltip: 'Analyze again',
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.refresh),
           ),
-          body: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: isDark
-                    ? [
-                        Theme.of(context).colorScheme.surface,
-                        Theme.of(context).scaffoldBackgroundColor,
-                      ]
-                    : [
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
-                        Theme.of(context).scaffoldBackgroundColor,
-                      ],
-                stops: const [0.0, 0.45],
-              ),
-            ),
-            child: SafeArea(
-              top: false,
+        ],
+      ),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(
-                  FeliVetUi.spaceLg,
-                  FeliVetUi.spaceXl,
-                  FeliVetUi.spaceLg,
-                  FeliVetUi.spaceXl,
-                ),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Container(
-                          width: double.infinity,
-                          padding: FeliVetUi.cardPadding,
-                          decoration: _resultCardDecoration(context),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(
-                                  FeliVetUi.spaceSm,
-                                ),
-                                decoration: FeliVetUi.iconBadge(
-                                  context,
-                                  color: color,
-                                ),
-                                child: Icon(icon, color: color, size: 26),
-                              ),
-                              const SizedBox(width: FeliVetUi.spaceMd),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Skin Disease Detected:',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: isDark
-                                            ? Colors.white70
-                                            : Colors.black54,
-                                      ),
-                                    ),
-                                    const SizedBox(height: FeliVetUi.spaceSm),
-                                    Text(
-                                      _headerLabel(),
-                                      style: TextStyle(
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.bold,
-                                        color: color,
-                                      ),
-                                    ),
-                                    if (result.detectedDisease != null &&
-                                        result.detectedDisease!.toLowerCase() ==
-                                            'ringworm') ...[
-                                      const SizedBox(height: FeliVetUi.spaceSm),
-                                      Text(
-                                        'Ringworm is a contagious fungal infection. Keep your cat isolated and consult your veterinarian for treatment.',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          height: 1.4,
-                                          color: isDark
-                                              ? Colors.white70
-                                              : Colors.black87,
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                        .animate()
-                        .slideY(
-                          begin: 0.3,
-                          end: 0.0,
-                          duration: const Duration(milliseconds: 600),
-                          curve: Curves.easeOutCubic,
-                        )
-                        .fadeIn(duration: const Duration(milliseconds: 400)),
-                    const SizedBox(height: FeliVetUi.spaceMd),
-                    if (result.image != null)
-                      GestureDetector(
-                        onTap: () => _showPhotoPopup(context, result.image!),
-                        child: Container(
-                          width: double.infinity,
-                          height: 180,
-                          margin: const EdgeInsets.only(
-                            bottom: FeliVetUi.spaceMd,
-                          ),
-                          decoration: _resultCardDecoration(context),
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(
-                                  FeliVetUi.cardRadius,
-                                ),
-                                child: Image.file(
-                                  result.image!,
-                                  fit: BoxFit.cover,
-                                  cacheWidth: 900,
-                                  filterQuality: FilterQuality.low,
-                                  errorBuilder: (_, _, _) => Container(
-                                    color: Theme.of(context).cardColor,
-                                    child: Center(
-                                      child: Icon(
-                                        Icons.broken_image_outlined,
-                                        size: 40,
-                                        color: Colors.grey.shade400,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Positioned(
-                                right: 10,
-                                bottom: 10,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: FeliVetUi.spaceMd,
-                                    vertical: FeliVetUi.spaceSm,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withValues(alpha: 0.55),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.zoom_in_rounded,
-                                        color: Colors.white,
-                                        size: 14,
-                                      ),
-                                      SizedBox(width: 4),
-                                      Text(
-                                        'Tap to enlarge',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    Container(
-                      width: double.infinity,
-                      padding: FeliVetUi.cardPadding,
-                      decoration: _resultCardDecoration(context),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  'Detection Result',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.5,
-                                    color: isDark
-                                        ? Colors.grey.shade400
-                                        : Colors.grey.shade700,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: FeliVetUi.spaceSm),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: FeliVetUi.spaceMd,
-                                  vertical: FeliVetUi.spaceXs,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: color.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  'RESULT',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 0.5,
-                                    color: color,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: FeliVetUi.spaceSm),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(
-                                  FeliVetUi.spaceSm,
-                                ),
-                                decoration: FeliVetUi.iconBadge(
-                                  context,
-                                  color: color,
-                                ),
-                                child: Icon(icon, color: color, size: 20),
-                              ),
-                              const SizedBox(width: FeliVetUi.spaceMd),
-                              Expanded(
-                                child: Text.rich(
-                                  TextSpan(
-                                    children: [
-                                      TextSpan(
-                                        text: 'Triage Analyzation:',
-                                        style: TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.bold,
-                                          color: isDark
-                                              ? Colors.white
-                                              : Colors.black87,
-                                        ),
-                                      ),
-                                      TextSpan(
-                                        text: ' ${result.urgency.label}',
-                                        style: TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.bold,
-                                          color: color,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: FeliVetUi.spaceLg),
-                          if (result.isLowQuality)
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(FeliVetUi.spaceMd),
-                              margin: const EdgeInsets.only(
-                                bottom: FeliVetUi.spaceMd,
-                              ),
-                              decoration: _resultCardDecoration(context),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Icon(
-                                    Icons.warning_amber_rounded,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurfaceVariant,
-                                    size: 18,
-                                  ),
-                                  const SizedBox(width: FeliVetUi.spaceSm),
-                                  Expanded(
-                                    child: Text(
-                                      'This scan used a lower-quality photo. Results may be less reliable — consider retaking the image for a clearer analysis.',
-                                      style: TextStyle(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
-                                        fontSize: 12.5,
-                                        height: 1.4,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          if (_showDetails &&
-                              result.comparisonTrend != null &&
-                              result.comparisonSummary != null) ...[
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(FeliVetUi.spaceMd),
-                              margin: const EdgeInsets.only(
-                                bottom: FeliVetUi.spaceMd,
-                              ),
-                              decoration: BoxDecoration(
-                                color: color.withValues(
-                                  alpha: isDark ? 0.16 : 0.10,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Icon(
-                                    Icons.compare_arrows_rounded,
-                                    color: color,
-                                    size: 18,
-                                  ),
-                                  const SizedBox(width: FeliVetUi.spaceSm),
-                                  Expanded(
-                                    child: Text(
-                                      '${result.comparisonTrend!.label} · ${result.comparisonSummary}',
-                                      style: TextStyle(
-                                        color: isDark
-                                            ? Colors.white
-                                            : Colors.black87,
-                                        fontSize: 12.5,
-                                        height: 1.4,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: FeliVetUi.spaceLg),
-                          if (result.urgency != UrgencyLevel.stable)
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                bottom: FeliVetUi.spaceMd,
-                              ),
-                              child: Text(
-                                result.urgency == UrgencyLevel.high
-                                    ? 'Please seek urgent veterinary care.'
-                                    : 'Please consult a vet soon.',
-                                style: TextStyle(
-                                  color: color,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          if (_showDetails &&
-                              result.urgency == UrgencyLevel.high)
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(FeliVetUi.spaceMd),
-                              margin: const EdgeInsets.only(
-                                bottom: FeliVetUi.spaceMd,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? const Color(0xFF2B1112)
-                                    : Colors.red.shade50,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: isDark
-                                      ? const Color(0xFFB23A3A)
-                                      : Colors.red.shade300,
-                                ),
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Icon(
-                                    Icons.emergency_outlined,
-                                    color: Color(0xFFFF6B6B),
-                                  ),
-                                  const SizedBox(width: FeliVetUi.spaceSm),
-                                  Expanded(
-                                    child: Text(
-                                      'Emergency advice: If your cat is struggling to breathe, collapsing, refusing water, or appears much worse than usual, seek urgent veterinary help now.',
-                                      style: TextStyle(
-                                        color: isDark
-                                            ? const Color(0xFFFFE5E5)
-                                            : Colors.red.shade900,
-                                        fontSize: 12.5,
-                                        height: 1.4,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          if (_showDetails && result.detectedDisease != null)
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                bottom: FeliVetUi.spaceMd,
-                              ),
-                              child: OutlinedButton.icon(
-                                onPressed: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => DiseaseInfoScreen(
-                                      diseaseName: result.detectedDisease!,
-                                    ),
-                                  ),
-                                ),
-                                icon: const Icon(Icons.info_outline),
-                                label: const Text('View disease information'),
-                              ),
-                            ),
-                          if (_showDetails)
-                            Container(
-                              width: double.infinity,
-                              padding: FeliVetUi.cardPadding,
-                              decoration: _resultCardDecoration(context),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.analytics_outlined,
-                                        size: 15,
-                                        color: isDark
-                                            ? Colors.grey.shade400
-                                            : Colors.grey.shade600,
-                                      ),
-                                      const SizedBox(width: FeliVetUi.spaceSm),
-                                      Expanded(
-                                        child: Text(
-                                          'Evidence Analysis',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 12.5,
-                                            fontWeight: FontWeight.bold,
-                                            color: isDark
-                                                ? Colors.grey.shade300
-                                                : Colors.grey.shade700,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: FeliVetUi.spaceSm),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: FeliVetUi.spaceSm,
-                                          vertical: FeliVetUi.spaceXs,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: color.withValues(alpha: 0.15),
-                                          borderRadius: BorderRadius.circular(
-                                            20,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          result.evidenceStrength.label,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 10.5,
-                                            fontWeight: FontWeight.bold,
-                                            color: color,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: FeliVetUi.spaceMd),
-                                  Wrap(
-                                    spacing: FeliVetUi.spaceSm,
-                                    runSpacing: FeliVetUi.spaceSm,
-                                    children: [
-                                      _buildInfoPill(
-                                        icon: Icons.insights_rounded,
-                                        label: result.confidence != null
-                                            ? '${(result.confidence! * 100).toStringAsFixed(0)}% confidence'
-                                            : 'Confidence pending',
-                                        color: color,
-                                        isDark: isDark,
-                                      ),
-                                      _buildInfoPill(
-                                        icon: Icons.checklist_rtl_rounded,
-                                        label:
-                                            '${result.symptomCount} symptom${result.symptomCount == 1 ? '' : 's'} selected',
-                                        color: color,
-                                        isDark: isDark,
-                                      ),
-                                      _buildInfoPill(
-                                        icon: Icons.health_and_safety_outlined,
-                                        label:
-                                            result.diseaseRisk?.label ??
-                                            'Clinical risk pending',
-                                        color: color,
-                                        isDark: isDark,
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: FeliVetUi.spaceMd),
-                                  if (result.confidence != null) ...[
-                                    Wrap(
-                                      crossAxisAlignment:
-                                          WrapCrossAlignment.center,
-                                      spacing: FeliVetUi.spaceSm,
-                                      runSpacing: FeliVetUi.spaceXs / 2,
-                                      children: [
-                                        Text(
-                                          'Model Confidence',
-                                          style: TextStyle(
-                                            fontSize: 12.5,
-                                            color: isDark
-                                                ? Colors.grey.shade400
-                                                : Colors.grey.shade600,
-                                          ),
-                                        ),
-                                        Text(
-                                          "${(result.confidence! * 100).toStringAsFixed(0)}%"
-                                          "${result.confidenceLevel != null ? ' · ${result.confidenceLevel!.label}' : ''}",
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.bold,
-                                            color: color,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: FeliVetUi.spaceSm),
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(6),
-                                      child: LinearProgressIndicator(
-                                        value: result.confidence,
-                                        minHeight: 8,
-                                        backgroundColor: isDark
-                                            ? Colors.grey.shade800
-                                            : Colors.grey.shade200,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                              color,
-                                            ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: FeliVetUi.spaceXs),
-                                    Text(
-                                      'Confidence reflects how sure the AI is about this prediction — not how severe the condition is.',
-                                      style: TextStyle(
-                                        fontSize: 10.5,
-                                        fontStyle: FontStyle.italic,
-                                        color: isDark
-                                            ? Colors.grey.shade500
-                                            : Colors.grey.shade600,
-                                      ),
-                                    ),
-                                    const SizedBox(height: FeliVetUi.spaceMd),
-                                  ],
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: _statTile(
-                                          context: context,
-                                          isDark: isDark,
-                                          label: 'Detected Areas',
-                                          infoText:
-                                              'The spots on your cat\'s body where the scan found something worth a closer look.',
-                                          value: '${result.detectionCount}',
-                                          icon: Icons.grain_rounded,
-                                          color: color,
-                                        ),
-                                      ),
-                                      const SizedBox(width: FeliVetUi.spaceMd),
-                                      Expanded(
-                                        child: _statTile(
-                                          context: context,
-                                          isDark: isDark,
-                                          label: 'Symptoms',
-                                          infoText:
-                                              'Signs you told the app about or the scan noticed, like redness, hair loss, or itching.',
-                                          value: '${result.symptomCount}',
-                                          icon: Icons.checklist_rtl_rounded,
-                                          color: color,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: FeliVetUi.spaceSm),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: _statTile(
-                                          context: context,
-                                          isDark: isDark,
-                                          label: 'Presence',
-                                          infoText:
-                                              'How much of this sign was found, from a small trace to a clear, strong sign.',
-                                          value: result.presenceStatus.label,
-                                          icon: Icons.fact_check_outlined,
-                                          color: color,
-                                          small: true,
-                                        ),
-                                      ),
-                                      const SizedBox(width: FeliVetUi.spaceMd),
-                                      Expanded(
-                                        child: _statTile(
-                                          context: context,
-                                          isDark: isDark,
-                                          label: 'Clinical Risk',
-                                          infoText:
-                                              'Our rough estimate of how serious this could be, so you know whether to watch it or see a vet soon.',
-                                          value:
-                                              result.diseaseRisk?.label ??
-                                              'N/A',
-                                          icon:
-                                              Icons.health_and_safety_outlined,
-                                          color: color,
-                                          small: true,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  if (result.isAmbiguous) ...[
-                                    const SizedBox(height: FeliVetUi.spaceMd),
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.help_outline_rounded,
-                                          size: 14,
-                                          color: color,
-                                        ),
-                                        const SizedBox(
-                                          width: FeliVetUi.spaceSm,
-                                        ),
-                                        Expanded(
-                                          child: Text(
-                                            'Classification is ambiguous between candidate conditions.',
-                                            style: TextStyle(
-                                              fontSize: 11.5,
-                                              fontStyle: FontStyle.italic,
-                                              color: isDark
-                                                  ? Colors.grey.shade400
-                                                  : Colors.grey.shade700,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          const SizedBox(height: FeliVetUi.spaceMd),
-                          if (_showDetails)
-                            Container(
-                              width: double.infinity,
-                              padding: FeliVetUi.cardPadding,
-                              decoration: _resultCardDecoration(context),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.psychology_outlined,
-                                        size: 15,
-                                        color: color,
-                                      ),
-                                      const SizedBox(width: FeliVetUi.spaceSm),
-                                      Text(
-                                        'Reasoning',
-                                        style: TextStyle(
-                                          fontSize: 12.5,
-                                          fontWeight: FontWeight.bold,
-                                          color: isDark
-                                              ? Colors.grey.shade200
-                                              : Colors.grey.shade700,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.all(
-                                      FeliVetUi.spaceMd,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: color.withValues(
-                                        alpha: isDark ? 0.15 : 0.08,
-                                      ),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Text(
-                                      result.recommendation,
-                                      style: TextStyle(
-                                        fontSize: 13.5,
-                                        height: 1.5,
-                                        fontWeight: FontWeight.w600,
-                                        color: isDark
-                                            ? Colors.white
-                                            : Colors.black87,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: FeliVetUi.spaceSm),
-                                  Text(
-                                    reasoningSupportText(result),
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      height: 1.35,
-                                      color: isDark
-                                          ? Colors.grey.shade300
-                                          : Colors.grey.shade700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          const SizedBox(height: FeliVetUi.spaceMd),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.info_outline,
-                                size: 13,
-                                color: isDark
-                                    ? Colors.grey.shade500
-                                    : Colors.grey.shade600,
-                              ),
-                              const SizedBox(width: FeliVetUi.spaceSm),
-                              Expanded(
-                                child: Text(
-                                  'This is an AI-assisted triage tool. Always consult a licensed veterinarian for diagnosis.',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontStyle: FontStyle.italic,
-                                    color: isDark
-                                        ? Colors.grey.shade500
-                                        : Colors.grey.shade600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: FeliVetUi.spaceMd),
-                          OutlinedButton.icon(
-                            onPressed: () =>
-                                setState(() => _showDetails = !_showDetails),
-                            style: OutlinedButton.styleFrom(
-                              minimumSize: const Size(double.infinity, 44),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              side: BorderSide(
-                                color: Theme.of(context).colorScheme.outline,
-                              ),
-                            ),
-                            icon: Icon(
-                              _showDetails
-                                  ? Icons.expand_less
-                                  : Icons.expand_more,
-                              size: 18,
-                            ),
-                            label: Text(
-                              _showDetails ? 'Hide details' : 'View details',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                    _HeroImage(
+                      image: result.image,
+                      urgency: result.urgency,
+                      onTap: result.image == null
+                          ? null
+                          : () => _showPhotoPopup(context, result.image!),
                     ),
-                    const SizedBox(height: FeliVetUi.spaceXl),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: FeliVetUi.spaceMd,
-                              ),
-                              shape: const StadiumBorder(),
-                              side: BorderSide(
-                                color: Theme.of(context).colorScheme.outline,
-                              ),
-                            ),
-                            onPressed: () => Navigator.pop(context),
-                            icon: Icon(Icons.arrow_back, size: 18),
-                            label: Text(
-                              'Back',
-                              style: TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: FeliVetUi.spaceMd),
-                        Expanded(
-                          child: FilledButton.icon(
-                            onPressed: () async {
-                              try {
-                                final file =
-                                    await PdfReportService.generateScanReport(
-                                      result,
-                                    );
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Report saved to ${file.path}',
-                                    ),
+                    const SizedBox(height: 16),
+                    _SummaryCard(result: result),
+                    const SizedBox(height: 12),
+                    _DiseaseInfoButton(
+                      enabled: result.detectedDisease != null,
+                      onPressed: result.detectedDisease == null
+                          ? null
+                          : () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => DiseaseInfoScreen(
+                                    diseaseName: result.detectedDisease!,
                                   ),
-                                );
-                              } catch (e) {
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Unable to create PDF report: $e',
-                                    ),
-                                  ),
-                                );
-                              }
+                                ),
+                              );
                             },
-                            icon: const Icon(Icons.picture_as_pdf, size: 18),
-                            label: const Text(
-                              'Export PDF',
-                              style: TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                        ),
-                      ],
                     ),
+                    const SizedBox(height: 12),
+                    _DetailsSection(
+                      result: result,
+                      expanded: _showDetails,
+                      onToggle: () =>
+                          setState(() => _showDetails = !_showDetails),
+                    ),
+                    const SizedBox(height: 16),
+                    _Disclaimer(color: scheme.onSurfaceVariant),
                   ],
                 ),
               ),
             ),
-          ),
+            _BottomActions(
+              onBack: () => Navigator.pop(context),
+              onExport: () => _exportPdf(context),
+              exporting: _isExporting,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  BoxDecoration _resultCardDecoration(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return BoxDecoration(
-      color: scheme.surface,
-      borderRadius: BorderRadius.circular(22),
-      boxShadow: [
-        BoxShadow(
-          color: scheme.shadow.withValues(alpha: 0.12),
-          blurRadius: 16,
-          offset: const Offset(0, 6),
+  Future<void> _exportPdf(BuildContext context) async {
+    if (_isExporting) return;
+    setState(() => _isExporting = true);
+    try {
+      final report = await ReportService.exportReport(result);
+      if (!context.mounted) return;
+      setState(() => _isExporting = false);
+      await showModalBottomSheet<void>(
+        context: context,
+        builder: (sheetContext) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const ListTile(
+                  leading: Icon(Icons.check_circle_outline),
+                  title: Text('Report saved'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.open_in_new),
+                  title: const Text('Open'),
+                  onTap: () async {
+                    Navigator.pop(sheetContext);
+                    final openResult = await ReportService.openReport(report);
+                    if (!context.mounted) return;
+                    if (openResult.type != ResultType.done) {
+                      await _shareWithFallback(context, report);
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.folder_open_outlined),
+                  title: const Text('View in Reports'),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    Navigator.pop(context);
+                    widget.onViewReports?.call(report);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.share_outlined),
+                  title: const Text('Share'),
+                  onTap: () async {
+                    Navigator.pop(sheetContext);
+                    await _shareWithFallback(context, report);
+                  },
+                ),
+              ],
+            ),
+          ),
         ),
-        BoxShadow(
-          color: scheme.primary.withValues(alpha: 0.04),
-          blurRadius: 2,
-          spreadRadius: 1,
+      );
+    } catch (error) {
+      if (mounted) setState(() => _isExporting = false);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to create PDF report: $error')),
+      );
+    }
+  }
+
+  Future<void> _shareWithFallback(
+    BuildContext context,
+    ReportFile report,
+  ) async {
+    try {
+      await ReportService.shareReport(report);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No PDF viewer found. Share sheet opened.')));
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Unable to open or share report: $error')));
+    }
+  }
+}
+
+class _HeroImage extends StatelessWidget {
+  final File? image;
+  final UrgencyLevel urgency;
+  final VoidCallback? onTap;
+
+  const _HeroImage({
+    required this.image,
+    required this.urgency,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = _statusColor(urgency);
+    final statusIcon = _statusIcon(urgency);
+
+    return AspectRatio(
+      aspectRatio: 1.65,
+      child: Material(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (image != null)
+                Image.file(
+                  image!,
+                  fit: BoxFit.cover,
+                  cacheWidth: 900,
+                  errorBuilder: (_, _, _) => _ImagePlaceholder(),
+                )
+              else
+                const _ImagePlaceholder(),
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Color(0x99000000)],
+                    stops: [0.55, 1],
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 12,
+                left: 12,
+                child: _StatusBadge(
+                  urgency: urgency,
+                  color: statusColor,
+                  icon: statusIcon,
+                ),
+              ),
+              if (onTap != null)
+                Positioned(
+                  right: 10,
+                  bottom: 10,
+                  child: _Pill(
+                    icon: Icons.zoom_in_rounded,
+                    label: 'Tap to enlarge',
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ImagePlaceholder extends StatelessWidget {
+  const _ImagePlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Icon(
+        Icons.image_not_supported_outlined,
+        size: 40,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
+    );
+  }
+}
+
+class _SummaryCard extends StatelessWidget {
+  final TriageResult result;
+
+  const _SummaryCard({required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final color = _statusColor(result.urgency);
+    final title = result.detectedDisease ?? 'No detected disease';
+    final trend = result.comparisonTrend;
+
+    return _SurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Detection Result',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.4,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              if (trend != null)
+                _TrendChip(trend: trend, summary: result.comparisonSummary),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _StatusIcon(color: color, icon: _statusIcon(result.urgency)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 22,
+                    height: 1.15,
+                    fontWeight: FontWeight.bold,
+                    color: scheme.onSurface,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            result.recommendation,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.35,
+              color: scheme.onSurface.withValues(alpha: 0.7),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _MetricTile(
+                  icon: Icons.grid_view_rounded,
+                  value: '${result.detectionCount}',
+                  label: 'Detected Areas',
+                  tooltip: 'Number of visual areas identified in the scan.',
+                  color: color,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _MetricTile(
+                  icon: Icons.checklist_rounded,
+                  value: '${result.symptomCount}',
+                  label: 'Symptoms',
+                  tooltip: 'Symptoms reported during the triage questionnaire.',
+                  color: color,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _MetricTile(
+                  icon: Icons.health_and_safety_outlined,
+                  value:
+                      result.diseaseRisk?.label.replaceFirst(
+                        ' Clinical Risk',
+                        '',
+                      ) ??
+                      '—',
+                  label: 'Clinical Risk',
+                  tooltip: 'Estimated clinical risk based on scan evidence.',
+                  color: color,
+                  compactValue: true,
+                ),
+              ),
+            ],
+          ),
+          if (result.confidence != null) ...[
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Text(
+                  'Confidence',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${(result.confidence! * 100).toStringAsFixed(0)}%',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: result.confidence!.clamp(0, 1),
+                minHeight: 6,
+                backgroundColor: scheme.surfaceContainerHighest,
+                valueColor: AlwaysStoppedAnimation(color),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricTile extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+  final String tooltip;
+  final Color color;
+  final bool compactValue;
+
+  const _MetricTile({
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.tooltip,
+    required this.color,
+    this.compactValue = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      constraints: const BoxConstraints(minHeight: 84),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(height: 5),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: compactValue ? 12 : 16,
+              fontWeight: FontWeight.bold,
+              color: scheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 2),
+              Tooltip(
+                message: tooltip,
+                child: Icon(
+                  Icons.info_outline,
+                  size: 12,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DiseaseInfoButton extends StatelessWidget {
+  final VoidCallback? onPressed;
+  final bool enabled;
+
+  const _DiseaseInfoButton({required this.onPressed, required this.enabled});
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: const Icon(Icons.info_outline),
+      label: const Align(
+        alignment: Alignment.centerLeft,
+        child: Text('View disease information'),
+      ),
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(48),
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        side: BorderSide(
+          color: enabled
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.6)
+              : Theme.of(context).colorScheme.outline,
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailsSection extends StatelessWidget {
+  final TriageResult result;
+  final bool expanded;
+  final VoidCallback onToggle;
+
+  const _DetailsSection({
+    required this.result,
+    required this.expanded,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final color = _statusColor(result.urgency);
+
+    return _SurfaceCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          InkWell(
+            onTap: onToggle,
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(Icons.notes_rounded, size: 19, color: color),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'View details',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns: expanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: const Icon(Icons.expand_more),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            child: expanded
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Divider(height: 1),
+                        const SizedBox(height: 16),
+                        _DetailBlock(
+                          icon: Icons.psychology_outlined,
+                          title: 'Reasoning',
+                          child: Text(
+                            result.reasoning,
+                            style: TextStyle(
+                              height: 1.45,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _DetailBlock(
+                          icon: Icons.analytics_outlined,
+                          title: 'Evidence analysis',
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  _EvidenceChip(
+                                    label: result.confidence == null
+                                        ? 'Confidence —'
+                                        : '${(result.confidence! * 100).toStringAsFixed(0)}% confidence',
+                                    color: color,
+                                  ),
+                                  _EvidenceChip(
+                                    label: result.evidenceStrength.label,
+                                    color: color,
+                                  ),
+                                ],
+                              ),
+                              if (result.selectedSymptoms.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Selected symptoms',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: scheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: result.selectedSymptoms
+                                      .map(
+                                        (symptom) => Chip(
+                                          label: Text(symptom),
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        if (result.isLowQuality) ...[
+                          const SizedBox(height: 16),
+                          Text(
+                            'The image quality was low, so this result should be interpreted cautiously.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailBlock extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final Widget child;
+
+  const _DetailBlock({
+    required this.icon,
+    required this.title,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 17, color: scheme.primary),
+            const SizedBox(width: 8),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+          ],
+        ),
+        const SizedBox(height: 10),
+        child,
+      ],
+    );
+  }
+}
+
+class _Disclaimer extends StatelessWidget {
+  final Color color;
+
+  const _Disclaimer({required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.info_outline, size: 15, color: color),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'AI-assisted triage tool. Always consult a licensed veterinarian for diagnosis.',
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.3,
+              fontStyle: FontStyle.italic,
+              color: color,
+            ),
+          ),
         ),
       ],
     );
   }
+}
 
-  Widget _buildInfoPill({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required bool isDark,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: FeliVetUi.spaceMd,
-        vertical: FeliVetUi.spaceSm,
+class _BottomActions extends StatelessWidget {
+  final VoidCallback onBack;
+  final Future<void> Function() onExport;
+  final bool exporting;
+
+  const _BottomActions({
+    required this.onBack,
+    required this.onExport,
+    required this.exporting,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: onBack,
+                icon: const Icon(Icons.arrow_back, size: 18),
+                label: const Text('Back'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  shape: const StadiumBorder(),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: exporting ? null : onExport,
+                icon: exporting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.picture_as_pdf, size: 18),
+                label: Text(exporting ? 'Saving…' : 'Export PDF'),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  backgroundColor: const Color(0xFFB99AFB),
+                  foregroundColor: const Color(0xFF24133F),
+                  shape: const StadiumBorder(),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+class _SurfaceCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  const _SurfaceCard({
+    required this.child,
+    this.padding = const EdgeInsets.all(16),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: padding,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.16 : 0.10),
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.shadow.withValues(alpha: 0.12),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  final UrgencyLevel urgency;
+  final Color color;
+  final IconData icon;
+
+  const _StatusBadge({
+    required this.urgency,
+    required this.color,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _Pill(icon: icon, label: urgency.label, color: color);
+  }
+}
+
+class _StatusIcon extends StatelessWidget {
+  final Color color;
+  final IconData icon;
+
+  const _StatusIcon({required this.color, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(9),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(icon, color: color, size: 22),
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color? color;
+
+  const _Pill({required this.icon, required this.label, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = color ?? Colors.white;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color:
+            color?.withValues(alpha: 0.18) ??
+            Colors.black.withValues(alpha: 0.58),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: FeliVetUi.spaceSm),
+          Icon(icon, size: 14, color: foreground),
+          const SizedBox(width: 5),
           Text(
             label,
             style: TextStyle(
-              color: color,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
+              color: foreground,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
       ),
     );
   }
-
-  Widget _statTile({
-    required BuildContext context,
-    required bool isDark,
-    required String label,
-    required String infoText,
-    required String value,
-    required IconData icon,
-    required Color color,
-    bool small = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        vertical: FeliVetUi.spaceSm,
-        horizontal: FeliVetUi.spaceSm,
-      ),
-      decoration: _resultCardDecoration(context),
-      child: Stack(
-        children: [
-          SizedBox(
-            width: double.infinity,
-            child: Column(
-              children: [
-                Icon(icon, size: 16, color: color),
-                const SizedBox(height: FeliVetUi.spaceSm),
-                Text(
-                  value,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: small ? 11.5 : 15,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: FeliVetUi.spaceXs / 2),
-                Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Positioned(
-            top: 4,
-            right: 4,
-            child: SizedBox(
-              width: 18,
-              height: 18,
-              child: IconButton(
-                padding: EdgeInsets.zero,
-                tooltip: 'About $label',
-                icon: const Icon(Icons.info_outline, size: 16),
-                color: color,
-                onPressed: () => _showInfoDialog(context, label, infoText),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showInfoDialog(BuildContext context, String title, String explanation) {
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.info_outline),
-            const SizedBox(width: 8),
-            Expanded(child: Text(title)),
-          ],
-        ),
-        content: Text(explanation),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Got it'),
-          ),
-        ],
-      ),
-    );
-  }
-
 }
+
+class _TrendChip extends StatelessWidget {
+  final ScanComparisonTrend trend;
+  final String? summary;
+
+  const _TrendChip({required this.trend, required this.summary});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = trend == ScanComparisonTrend.worsened
+        ? _statusColor(UrgencyLevel.high)
+        : trend == ScanComparisonTrend.improved
+        ? _statusColor(UrgencyLevel.stable)
+        : Theme.of(context).colorScheme.onSurfaceVariant;
+    final arrow = trend == ScanComparisonTrend.worsened ? '↓' : '↑';
+    return Flexible(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          '$arrow ${summary ?? trend.label}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EvidenceChip extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _EvidenceChip({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
+      ),
+    );
+  }
+}
+
+Color _statusColor(UrgencyLevel urgency) => switch (urgency) {
+  UrgencyLevel.stable => const Color(0xFF3FA85C),
+  UrgencyLevel.moderate => const Color(0xFFF2A93B),
+  UrgencyLevel.high => const Color(0xFFE0402C),
+};
+
+IconData _statusIcon(UrgencyLevel urgency) => switch (urgency) {
+  UrgencyLevel.stable => Icons.verified_rounded,
+  UrgencyLevel.moderate => Icons.assignment_late_rounded,
+  UrgencyLevel.high => Icons.warning_rounded,
+};

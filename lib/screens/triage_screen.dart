@@ -5,12 +5,11 @@ import 'dart:math' as math;
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_vision/flutter_vision.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
-import 'package:open_filex/open_filex.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../config/detection_config.dart';
 import '../core/sound_utils.dart';
@@ -22,9 +21,9 @@ import '../services/cat_gatekeeper.dart';
 import '../services/history_storage.dart';
 import '../services/symptom_intake_service.dart';
 import '../services/triage_engine.dart';
-import '../services/pdf_report_service.dart';
 import '../widgets/follow_up_reminder_panel.dart';
 import 'history_screen.dart';
+import 'reports_screen.dart';
 import 'result_screen.dart';
 import 'status_screen.dart';
 import 'triage_submission_validator.dart';
@@ -59,6 +58,7 @@ class _NoCatDetectedDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final rejectionColor = _gatekeeperColor(context);
     final hasThumbnail = rejectedImage != null && rejectedImage!.existsSync();
 
     return SafeArea(
@@ -87,13 +87,15 @@ class _NoCatDetectedDialog extends StatelessWidget {
                           width: 52,
                           height: 52,
                           decoration: BoxDecoration(
-                            color: scheme.surfaceContainerHighest,
+                            color: rejectionColor.withValues(alpha: 0.14),
                             shape: BoxShape.circle,
-                            border: Border.all(color: scheme.outlineVariant),
+                            border: Border.all(
+                              color: rejectionColor.withValues(alpha: 0.30),
+                            ),
                           ),
                           child: Icon(
                             Icons.pets_outlined,
-                            color: scheme.tertiary,
+                            color: rejectionColor,
                             size: 27,
                           ),
                         ),
@@ -245,6 +247,9 @@ class _NoCatDetectedDialog extends StatelessWidget {
   }
 }
 
+Color _gatekeeperColor(BuildContext context) =>
+    Theme.of(context).colorScheme.error;
+
 class _PressScaleButton extends StatefulWidget {
   final VoidCallback onPressed;
   final BoxDecoration decoration;
@@ -358,7 +363,6 @@ class _TriageScreenState extends State<TriageScreen> {
   bool _lostAppetite = false;
 
   List<TriageResult> _history = [];
-  final Map<String, bool> _pdfAvailability = {};
   List<CatProfile> _profiles = [];
   CatProfile? _activeProfile;
   int _selectedIndex = TriageTabs.dashboardTab;
@@ -405,7 +409,6 @@ class _TriageScreenState extends State<TriageScreen> {
       setState(() {
         _history = saved;
       });
-      _refreshPdfAvailability(saved);
     }
     // Debug: log loaded history count so devs can verify persistence
     // This will appear in device logs when running in debug mode.
@@ -433,17 +436,6 @@ class _TriageScreenState extends State<TriageScreen> {
 
   File? get _previewImage =>
       _hideLatestImage ? null : (_image ?? _latestActiveImage);
-
-  String _pdfKey(TriageResult result) => result.timestamp.toIso8601String();
-
-  Future<void> _refreshPdfAvailability(List<TriageResult> results) async {
-    final availability = <String, bool>{};
-    for (final result in results) {
-      final file = await PdfReportService.reportFileFor(result);
-      availability[_pdfKey(result)] = await file.exists();
-    }
-    if (mounted) setState(() => _pdfAvailability.addAll(availability));
-  }
 
   Future<void> _changeActiveProfile(CatProfile profile) async {
     await CatProfileStorage.saveActiveCatId(profile.id);
@@ -1250,6 +1242,14 @@ class _TriageScreenState extends State<TriageScreen> {
             history: _history,
             onDeleteHistoryEntry: _deleteHistoryEntry,
             onClearHistory: _clearHistory,
+            onViewReports: (report) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ReportsScreen(highlightPath: report.path),
+                ),
+              );
+            },
           ),
         ),
       );
@@ -2418,7 +2418,6 @@ class _TriageScreenState extends State<TriageScreen> {
   }
 
   Widget _buildPersonalization() {
-    final reportHistory = _activeCatHistory;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(FeliVetUi.spaceXl),
       child: Column(
@@ -2522,173 +2521,21 @@ class _TriageScreenState extends State<TriageScreen> {
             width: double.infinity,
             padding: FeliVetUi.cardPadding,
             decoration: FeliVetUi.cardDecoration(context),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(FeliVetUi.spaceSm),
-                      decoration: FeliVetUi.iconBadge(
-                        context,
-                        color: Colors.blueGrey,
-                      ),
-                      child: Icon(
-                        Icons.file_download_outlined,
-                        color: Colors.blueGrey,
-                        size: 22,
-                      ),
-                    ),
-                    const SizedBox(width: FeliVetUi.spaceMd),
-                    Text(
-                      'Report History',
-                      style: FeliVetUi.heading(context, size: 18),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: FeliVetUi.spaceMd),
-                if (reportHistory.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: FeliVetUi.spaceXl,
-                    ),
-                    child: Center(
-                      child: Column(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(FeliVetUi.spaceSm),
-                            decoration: FeliVetUi.iconBadge(context),
-                            child: Icon(
-                              Icons.inbox_outlined,
-                              size: 28,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                          ),
-                          const SizedBox(height: FeliVetUi.spaceMd),
-                          Text(
-                            'No reports available',
-                            style: FeliVetUi.muted(context, size: 14),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                else
-                  Column(
-                    children: reportHistory.map((result) {
-                      final fileName =
-                          '${result.detectedDisease ?? "Analysis"}_${result.timestamp.day}-${result.timestamp.month}-${result.timestamp.year}.pdf';
-                      return Padding(
-                        padding: const EdgeInsets.only(
-                          bottom: FeliVetUi.spaceSm,
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.all(FeliVetUi.spaceMd),
-                          decoration: FeliVetUi.cardDecoration(context),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(
-                                  FeliVetUi.spaceSm,
-                                ),
-                                decoration: FeliVetUi.iconBadge(
-                                  context,
-                                  color: const Color(0xFFE0402C),
-                                ),
-                                child: const Icon(
-                                  Icons.picture_as_pdf_outlined,
-                                  color: Color(0xFFE0402C),
-                                  size: 20,
-                                ),
-                              ),
-                              const SizedBox(width: FeliVetUi.spaceSm),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      fileName,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurface,
-                                      ),
-                                    ),
-                                    Text(
-                                      '${result.timestamp.day}/${result.timestamp.month}/${result.timestamp.year} ${result.timestamp.hour.toString().padLeft(2, '0')}:${result.timestamp.minute.toString().padLeft(2, '0')}',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              IconButton(
-                                tooltip:
-                                    _pdfAvailability[_pdfKey(result)] == true
-                                    ? 'Open PDF'
-                                    : 'Download PDF',
-                                icon: Container(
-                                  padding: const EdgeInsets.all(
-                                    FeliVetUi.spaceSm,
-                                  ),
-                                  decoration: FeliVetUi.iconBadge(context),
-                                  child: Icon(
-                                    _pdfAvailability[_pdfKey(result)] == true
-                                        ? Icons.open_in_new_outlined
-                                        : Icons.download_outlined,
-                                  ),
-                                ),
-                                onPressed: () async {
-                                  AppSounds.playTap();
-                                  try {
-                                    final file =
-                                        await PdfReportService.reportFileFor(
-                                          result,
-                                        );
-                                    if (!await file.exists()) {
-                                      await PdfReportService.generateScanReport(
-                                        result,
-                                      );
-                                    }
-                                    if (!mounted) return;
-                                    setState(
-                                      () => _pdfAvailability[_pdfKey(result)] =
-                                          true,
-                                    );
-                                    await OpenFilex.open(file.path);
-                                    if (!context.mounted) return;
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('PDF ready to open'),
-                                      ),
-                                    );
-                                  } catch (e) {
-                                    if (!context.mounted) return;
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Unable to create PDF: ${e.toString()}',
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-              ],
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                Icons.folder_open_outlined,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              title: const Text('Reports'),
+              subtitle: const Text(
+                'View, open, share, or delete exported PDFs',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ReportsScreen()),
+              ),
             ),
           ),
           const SizedBox(height: FeliVetUi.spaceMd),

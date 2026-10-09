@@ -4,6 +4,11 @@ import 'package:flutter/material.dart';
 
 import 'triage_screen.dart';
 
+const _splashTopColor = Color(0xFF7C4DFF);
+const _splashBottomColor = Color(0xFFEDE7F6);
+const _splashIconSize = 110.0;
+const _splashIconAsset = 'assets/icon/icon.png';
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -11,30 +16,37 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
-  double _pawOpacity = 0.0;
-  double _textOpacity = 0.0;
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _textOpacity;
 
   @override
   void initState() {
     super.initState();
-    _startAnimationSequence();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    )..forward();
+    _textOpacity = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.25, 0.75, curve: Curves.easeOut),
+    );
+    Timer(const Duration(milliseconds: 3800), _openTriage);
   }
 
-  Future<void> _startAnimationSequence() async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    if (mounted) setState(() => _pawOpacity = 1.0);
+  void _openTriage() {
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const TriageScreen()),
+    );
+  }
 
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (mounted) setState(() => _textOpacity = 1.0);
-
-    await Future.delayed(const Duration(milliseconds: 2500));
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const TriageScreen()),
-      );
-    }
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
@@ -45,26 +57,21 @@ class _SplashScreenState extends State<SplashScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF7C4DFF), Color(0xFFEDE7F6)],
+            colors: [_splashTopColor, _splashBottomColor],
           ),
         ),
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              AnimatedOpacity(
-                duration: const Duration(milliseconds: 800),
-                opacity: _pawOpacity,
-                child: Image.asset(
-                  'assets/icon/icon.png',
-                  width: 110,
-                  height: 110,
-                  fit: BoxFit.contain,
-                ),
+              Image.asset(
+                _splashIconAsset,
+                width: _splashIconSize,
+                height: _splashIconSize,
+                fit: BoxFit.contain,
               ),
               const SizedBox(height: 20),
-              AnimatedOpacity(
-                duration: const Duration(milliseconds: 800),
+              FadeTransition(
                 opacity: _textOpacity,
                 child: Column(
                   children: [
