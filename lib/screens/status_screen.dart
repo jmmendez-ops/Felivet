@@ -329,12 +329,7 @@ class _StatusScreenState extends State<StatusScreen>
   }
 
   BoxDecoration _cardDecoration(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return BoxDecoration(
-      color: scheme.surface,
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: scheme.outlineVariant),
-    );
+    return FeliVetUi.dashboardCardDecoration(context);
   }
 
   String _comparisonLabel(ScanComparisonTrend trend) => switch (trend) {

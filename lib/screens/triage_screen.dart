@@ -21,6 +21,7 @@ import '../services/cat_gatekeeper.dart';
 import '../services/history_storage.dart';
 import '../services/symptom_intake_service.dart';
 import '../services/triage_engine.dart';
+import '../widgets/app_background.dart';
 import '../widgets/follow_up_reminder_panel.dart';
 import 'history_screen.dart';
 import 'reports_screen.dart';
@@ -1762,11 +1763,11 @@ class _TriageScreenState extends State<TriageScreen> {
     );
   }
 
-  Widget _buildSystemicSymptomsCard() {
+  Widget _buildSystemicSymptomsCard({bool compact = false}) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(FeliVetUi.spaceLg),
+      padding: EdgeInsets.all(compact ? FeliVetUi.spaceSm : FeliVetUi.spaceLg),
       decoration: BoxDecoration(
         color: scheme.surface,
         borderRadius: BorderRadius.circular(22),
@@ -1792,7 +1793,9 @@ class _TriageScreenState extends State<TriageScreen> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(FeliVetUi.spaceSm),
+                padding: EdgeInsets.all(
+                  compact ? FeliVetUi.spaceXs : FeliVetUi.spaceSm,
+                ),
                 decoration: FeliVetUi.iconBadge(context),
                 child: Icon(
                   Icons.monitor_heart_outlined,
@@ -1801,21 +1804,29 @@ class _TriageScreenState extends State<TriageScreen> {
                 ),
               ),
               const SizedBox(width: FeliVetUi.spaceSm),
-              Text(
-                'Systemic Symptoms',
-                style: FeliVetUi.heading(context, size: 18),
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Systemic Symptoms',
+                    style: FeliVetUi.heading(context, size: 18),
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: FeliVetUi.spaceXs),
           Text(
             'Optional: select anything you have noticed',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: FeliVetUi.muted(context, size: 12),
           ),
-          const SizedBox(height: FeliVetUi.spaceMd),
+          SizedBox(height: compact ? FeliVetUi.spaceSm : FeliVetUi.spaceMd),
           Wrap(
             spacing: FeliVetUi.spaceSm,
-            runSpacing: FeliVetUi.spaceSm,
+            runSpacing: compact ? FeliVetUi.spaceXs : FeliVetUi.spaceSm,
             children: [
               _buildSymptomChip(
                 title: 'Vomiting',
@@ -1908,6 +1919,8 @@ class _TriageScreenState extends State<TriageScreen> {
           Expanded(
             child: Text(
               message,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: scheme.onSurfaceVariant,
                 fontSize: 12,
@@ -1923,15 +1936,10 @@ class _TriageScreenState extends State<TriageScreen> {
 
   Widget _buildPhotoHero() {
     final scheme = Theme.of(context).colorScheme;
-    final heroHeight = (MediaQuery.sizeOf(context).height * 0.4).clamp(
-      200.0,
-      300.0,
-    );
     final preview = _previewImage;
 
     return Container(
       width: double.infinity,
-      height: heroHeight,
       decoration: _dashboardCardDecoration(context, radius: 28),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(28),
@@ -1959,44 +1967,49 @@ class _TriageScreenState extends State<TriageScreen> {
     return Container(
       width: double.infinity,
       color: scheme.surfaceContainerHighest.withValues(alpha: 0.28),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: scheme.primaryContainer,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: scheme.primary.withValues(alpha: 0.18),
-                  blurRadius: 24,
-                  spreadRadius: 4,
+      child: Center(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: scheme.primaryContainer,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: scheme.primary.withValues(alpha: 0.18),
+                      blurRadius: 24,
+                      spreadRadius: 4,
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: Icon(
-              Icons.pets_rounded,
-              size: 42,
-              color: scheme.onPrimaryContainer,
-            ),
+                child: Icon(
+                  Icons.pets_rounded,
+                  size: 42,
+                  color: scheme.onPrimaryContainer,
+                ),
+              ),
+              const SizedBox(height: FeliVetUi.spaceMd),
+              Text(
+                'Upload a photo to begin',
+                style: TextStyle(
+                  color: scheme.onSurface,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: FeliVetUi.spaceXs),
+              Text(
+                'Use good lighting and keep the skin area in focus',
+                textAlign: TextAlign.center,
+                style: FeliVetUi.muted(context, size: 11.5),
+              ),
+            ],
           ),
-          const SizedBox(height: FeliVetUi.spaceMd),
-          Text(
-            'Upload a photo to begin',
-            style: TextStyle(
-              color: scheme.onSurface,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: FeliVetUi.spaceXs),
-          Text(
-            'Use good lighting and keep the skin area in focus',
-            textAlign: TextAlign.center,
-            style: FeliVetUi.muted(context, size: 11.5),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -2138,6 +2151,8 @@ class _TriageScreenState extends State<TriageScreen> {
                   )
                 : Text(
                     'ANALYZE HEALTH',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: scheme.onPrimary,
                       fontSize: 16,
@@ -2179,39 +2194,55 @@ class _TriageScreenState extends State<TriageScreen> {
             colors: [scheme.surface, scheme.surfaceContainer],
           ),
         ),
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(
-                  FeliVetUi.spaceLg,
-                  FeliVetUi.spaceMd,
-                  FeliVetUi.spaceLg,
-                  FeliVetUi.spaceMd,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _dashboardEntrance(_buildDashboardStatusMessage(), 0),
-                    _dashboardEntrance(_buildPhotoHero(), 60),
-                    const SizedBox(height: FeliVetUi.spaceMd),
-                    _dashboardEntrance(_buildCaptureButtons(), 120),
-                    const SizedBox(height: FeliVetUi.spaceLg),
-                    _dashboardEntrance(_buildSystemicSymptomsCard(), 180),
-                  ],
-                ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxHeight < 560;
+            final horizontalPadding = compact
+                ? FeliVetUi.spaceMd
+                : FeliVetUi.spaceLg;
+            final verticalPadding = compact
+                ? FeliVetUi.spaceXs
+                : FeliVetUi.spaceMd;
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                verticalPadding,
+                horizontalPadding,
+                compact ? FeliVetUi.spaceXs : FeliVetUi.spaceMd,
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                FeliVetUi.spaceLg,
-                FeliVetUi.spaceSm,
-                FeliVetUi.spaceLg,
-                FeliVetUi.spaceMd,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _dashboardEntrance(_buildDashboardStatusMessage(), 0),
+                  Expanded(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight < 460 ? 0 : 120,
+                      ),
+                      child: _dashboardEntrance(_buildPhotoHero(), 60),
+                    ),
+                  ),
+                  SizedBox(
+                    height: compact ? FeliVetUi.spaceXs : FeliVetUi.spaceMd,
+                  ),
+                  _dashboardEntrance(_buildCaptureButtons(), 120),
+                  SizedBox(
+                    height: compact ? FeliVetUi.spaceXs : FeliVetUi.spaceLg,
+                  ),
+                  _dashboardEntrance(
+                    _buildSystemicSymptomsCard(compact: compact),
+                    180,
+                  ),
+                  Padding(
+                    padding: EdgeInsets.only(
+                      top: compact ? FeliVetUi.spaceXs : FeliVetUi.spaceSm,
+                    ),
+                    child: _dashboardEntrance(_buildAnalyzeButton(), 240),
+                  ),
+                ],
               ),
-              child: _dashboardEntrance(_buildAnalyzeButton(), 240),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
@@ -2232,6 +2263,8 @@ class _TriageScreenState extends State<TriageScreen> {
     ];
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Row(
           mainAxisSize: MainAxisSize.min,
@@ -2385,7 +2418,9 @@ class _TriageScreenState extends State<TriageScreen> {
         ),
         centerTitle: true,
       ),
-      body: IndexedStack(index: _selectedIndex, children: screens),
+      body: AppBackground(
+        child: IndexedStack(index: _selectedIndex, children: screens),
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) {
@@ -2418,179 +2453,187 @@ class _TriageScreenState extends State<TriageScreen> {
   }
 
   Widget _buildPersonalization() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(FeliVetUi.spaceXl),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Settings',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: FeliVetUi.spaceLg),
-          GestureDetector(
-            onTap: () => _showAddCatDialog(fromSettings: true),
-            child: Container(
-              width: double.infinity,
-              padding: FeliVetUi.cardPadding,
-              decoration: FeliVetUi.cardDecoration(context),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(FeliVetUi.spaceSm),
-                    decoration: FeliVetUi.iconBadge(context),
-                    child: Icon(
-                      Icons.pets_outlined,
-                      color: Theme.of(context).colorScheme.primary,
-                      size: 22,
-                    ),
-                  ),
-                  const SizedBox(width: FeliVetUi.spaceMd),
-                  Expanded(
-                    child: Text(
-                      'Add cat profile',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: FeliVetUi.spaceMd),
-          if (_profiles.isNotEmpty) ...[
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(FeliVetUi.spaceXl),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Text(
-              'Your cats',
+              'Settings',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 20,
                 fontWeight: FontWeight.w700,
                 color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
-            const SizedBox(height: FeliVetUi.spaceMd),
-            ..._profiles.map((profile) {
-              final isActive = profile.id == (_activeProfile?.id ?? '');
-              return Padding(
-                padding: const EdgeInsets.only(bottom: FeliVetUi.spaceSm),
-                child: Container(
-                  decoration: FeliVetUi.cardDecoration(context),
-                  child: ListTile(
-                    leading: _buildCatAvatar(context, profile, radius: 20),
-                    title: Text(profile.name),
-                    subtitle: profile.breed != null
-                        ? Text(profile.breed!)
-                        : null,
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (isActive)
-                          Icon(
-                            Icons.check_circle,
-                            color: Theme.of(context).colorScheme.primary,
-                          )
-                        else
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline),
-                            onPressed: () =>
-                                _removeProfile(profile, fromSettings: true),
-                          ),
-                      ],
-                    ),
-                    onTap: isActive
-                        ? null
-                        : () async {
-                            await _changeActiveProfile(profile);
-                          },
-                  ),
-                ),
-              );
-            }),
-            const SizedBox(height: FeliVetUi.spaceMd),
-          ],
-          const SizedBox(height: FeliVetUi.spaceMd),
-          FollowUpReminderPanel(catName: _activeProfile?.name),
-          const SizedBox(height: FeliVetUi.spaceMd),
-          Container(
-            width: double.infinity,
-            padding: FeliVetUi.cardPadding,
-            decoration: FeliVetUi.cardDecoration(context),
-            child: ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(
-                Icons.folder_open_outlined,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              title: const Text('Reports'),
-              subtitle: const Text(
-                'View, open, share, or delete exported PDFs',
-              ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ReportsScreen()),
-              ),
-            ),
-          ),
-          const SizedBox(height: FeliVetUi.spaceMd),
-          Container(
-            width: double.infinity,
-            padding: FeliVetUi.cardPadding,
-            decoration: FeliVetUi.cardDecoration(context),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+            const SizedBox(height: FeliVetUi.spaceLg),
+            GestureDetector(
+              onTap: () => _showAddCatDialog(fromSettings: true),
+              child: Container(
+                width: double.infinity,
+                padding: FeliVetUi.cardPadding,
+                decoration: FeliVetUi.dashboardCardDecoration(context),
+                child: Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(FeliVetUi.spaceSm),
                       decoration: FeliVetUi.iconBadge(context),
                       child: Icon(
-                        Icons.info_outline_rounded,
+                        Icons.pets_outlined,
                         color: Theme.of(context).colorScheme.primary,
                         size: 22,
                       ),
                     ),
                     const SizedBox(width: FeliVetUi.spaceMd),
-                    Text(
-                      'About FeliVet Insight',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Theme.of(context).colorScheme.onSurface,
+                    Expanded(
+                      child: Text(
+                        'Add cat profile',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: FeliVetUi.spaceSm),
-                Text(
-                  'v1.0',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: FeliVetUi.spaceXs),
-                Text(
-                  'An intelligent AI-powered feline health triage system designed to help identify potential skin conditions and assess urgency through computer vision analysis.',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    height: 1.5,
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-          const SizedBox(height: FeliVetUi.spaceXl),
-        ],
+            const SizedBox(height: FeliVetUi.spaceMd),
+            if (_profiles.isNotEmpty) ...[
+              Text(
+                'Your cats',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: FeliVetUi.spaceMd),
+              ..._profiles.map((profile) {
+                final isActive = profile.id == (_activeProfile?.id ?? '');
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: FeliVetUi.spaceSm),
+                  child: Container(
+                    decoration: FeliVetUi.dashboardCardDecoration(context),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: ListTile(
+                        leading: _buildCatAvatar(context, profile, radius: 20),
+                        title: Text(profile.name),
+                        subtitle: profile.breed != null
+                            ? Text(profile.breed!)
+                            : null,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isActive)
+                              Icon(
+                                Icons.check_circle,
+                                color: Theme.of(context).colorScheme.primary,
+                              )
+                            else
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline),
+                                onPressed: () =>
+                                    _removeProfile(profile, fromSettings: true),
+                              ),
+                          ],
+                        ),
+                        onTap: isActive
+                            ? null
+                            : () async {
+                                await _changeActiveProfile(profile);
+                              },
+                      ),
+                    ),
+                  ),
+                );
+              }),
+              const SizedBox(height: FeliVetUi.spaceMd),
+            ],
+            const SizedBox(height: FeliVetUi.spaceMd),
+            FollowUpReminderPanel(catName: _activeProfile?.name),
+            const SizedBox(height: FeliVetUi.spaceMd),
+            Container(
+              width: double.infinity,
+              padding: FeliVetUi.cardPadding,
+              decoration: FeliVetUi.dashboardCardDecoration(context),
+              child: Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    Icons.folder_open_outlined,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  title: const Text('Reports'),
+                  subtitle: const Text(
+                    'View, open, share, or delete exported PDFs',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ReportsScreen()),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: FeliVetUi.spaceMd),
+            Container(
+              width: double.infinity,
+              padding: FeliVetUi.cardPadding,
+              decoration: FeliVetUi.dashboardCardDecoration(context),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(FeliVetUi.spaceSm),
+                        decoration: FeliVetUi.iconBadge(context),
+                        child: Icon(
+                          Icons.info_outline_rounded,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: FeliVetUi.spaceMd),
+                      Text(
+                        'About FeliVet Insight',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: FeliVetUi.spaceSm),
+                  Text(
+                    'v1.0',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: FeliVetUi.spaceXs),
+                  Text(
+                    'An intelligent AI-powered feline health triage system designed to help identify potential skin conditions and assess urgency through computer vision analysis.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: FeliVetUi.spaceXl),
+          ],
+        ),
       ),
     );
   }

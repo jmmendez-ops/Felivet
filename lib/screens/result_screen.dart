@@ -50,6 +50,7 @@ class _ResultScreenState extends State<ResultScreen> {
   bool _isExporting = false;
 
   TriageResult get result => widget.result;
+  bool get hasDetectedDisease => result.detectedDisease != null;
 
   void _showPhotoPopup(BuildContext context, File image) {
     AppSounds.playTap();
@@ -119,21 +120,21 @@ class _ResultScreenState extends State<ResultScreen> {
                     const SizedBox(height: 16),
                     _SummaryCard(result: result),
                     const SizedBox(height: 12),
-                    _DiseaseInfoButton(
-                      enabled: result.detectedDisease != null,
-                      onPressed: result.detectedDisease == null
-                          ? null
-                          : () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => DiseaseInfoScreen(
-                                    diseaseName: result.detectedDisease!,
-                                  ),
-                                ),
-                              );
-                            },
-                    ),
-                    const SizedBox(height: 12),
+                    if (hasDetectedDisease) ...[
+                      _DiseaseInfoButton(
+                        enabled: hasDetectedDisease,
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => DiseaseInfoScreen(
+                                diseaseName: result.detectedDisease!,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                     _DetailsSection(
                       result: result,
                       expanded: _showDetails,
@@ -226,14 +227,16 @@ class _ResultScreenState extends State<ResultScreen> {
     try {
       await ReportService.shareReport(report);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('No PDF viewer found. Share sheet opened.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No PDF viewer found. Share sheet opened.'),
+        ),
+      );
     } catch (error) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Unable to open or share report: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to open or share report: $error')),
+      );
     }
   }
 }

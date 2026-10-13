@@ -74,7 +74,7 @@ class FeliVetApp extends StatelessWidget {
           toolbarHeight: 52,
           elevation: 0,
           scrolledUnderElevation: 0,
-          backgroundColor: background,
+          backgroundColor: Colors.transparent,
           foregroundColor: onSurface,
           centerTitle: false,
         ),

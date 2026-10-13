@@ -44,6 +44,32 @@ class FeliVetUi {
     );
   }
 
+  static BoxDecoration dashboardCardDecoration(
+    BuildContext context, {
+    double radius = 24,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return BoxDecoration(
+      color: scheme.surface,
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.4)),
+      boxShadow: Theme.of(context).brightness == Brightness.dark
+          ? const []
+          : [
+              BoxShadow(
+                color: scheme.shadow.withValues(alpha: 0.13),
+                blurRadius: 22,
+                offset: const Offset(0, 9),
+              ),
+              BoxShadow(
+                color: scheme.primary.withValues(alpha: 0.05),
+                blurRadius: 4,
+                spreadRadius: 1,
+              ),
+            ],
+    );
+  }
+
   static BoxDecoration iconBadge(BuildContext context, {Color? color}) {
     final badgeColor = color ?? Theme.of(context).colorScheme.primary;
     return BoxDecoration(
