@@ -1,0 +1,28 @@
+name: Verify Flutter web build
+
+on:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  build-web:
+    name: Build Flutter web
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build web app
+        run: flutter build web

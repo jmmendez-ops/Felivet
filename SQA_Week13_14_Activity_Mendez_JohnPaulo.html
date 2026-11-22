@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SQA Week 13-14 Activity - Diagnose, Defend, and Improve</title>
+<style>
+  @page {
+    size: A4;
+    margin: 18mm 16mm 18mm 16mm;
+  }
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+    color: #1e293b;
+    line-height: 1.55;
+    font-size: 10pt;
+    margin: 0;
+    padding: 0;
+    background: #ffffff;
+  }
+  .header-banner {
+    text-align: center;
+    border-bottom: 2px solid #1e3a8a;
+    padding-bottom: 10px;
+    margin-bottom: 16px;
+  }
+  .header-banner h3 {
+    margin: 0;
+    font-size: 11pt;
+    letter-spacing: 1.5px;
+    color: #475569;
+    font-weight: 700;
+  }
+  .header-banner h1 {
+    margin: 4px 0;
+    font-size: 18pt;
+    color: #1e3a8a;
+    font-weight: 800;
+  }
+  .header-banner .badge {
+    display: inline-block;
+    background: #e0e7ff;
+    color: #3730a3;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 9pt;
+  }
+  .info-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .info-table td {
+    padding: 7px 12px;
+    border: 1px solid #cbd5e1;
+    font-size: 9.5pt;
+  }
+  .info-table td strong {
+    color: #1e3a8a;
+  }
+  .scenario-box {
+    background: #f1f5f9;
+    border-left: 4px solid #475569;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    border-radius: 0 6px 6px 0;
+    font-size: 9.5pt;
+  }
+  .scenario-box h4 {
+    margin: 0 0 6px 0;
+    color: #0f172a;
+    font-size: 10pt;
+  }
+  .scenario-box ul {
+    margin: 4px 0;
+    padding-left: 18px;
+  }
+  .scenario-box li {
+    margin-bottom: 3px;
+  }
+  h2.part-title {
+    font-size: 12pt;
+    color: #ffffff;
+    background: #1e3a8a;
+    padding: 7px 12px;
+    border-radius: 5px;
+    margin-top: 18px;
+    margin-bottom: 10px;
+    page-break-after: avoid;
+  }
+  .question-block {
+    margin-bottom: 14px;
+    page-break-inside: avoid;
+  }
+  .question-title {
+    font-size: 10pt;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 4px;
+  }
+  .response-box {
+    background: #f8fafc;
+    border-left: 3px solid #3b82f6;
+    padding: 8px 12px;
+    border-radius: 0 4px 4px 0;
+    font-size: 9.5pt;
+    text-align: justify;
+  }
+  .response-box strong {
+    color: #1e3a8a;
+  }
+  .calc-box {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin: 6px 0;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 9pt;
+    color: #1e3a8a;
+  }
+  .checklist-box {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin-top: 16px;
+  }
+  .checklist-box ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 4px 0;
+  }
+  .checklist-box li {
+    margin-bottom: 4px;
+    font-weight: 600;
+    color: #166534;
+  }
+  .page-break {
+    page-break-before: always;
+  }
+  table.rubric-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 14px;
+    font-size: 8.5pt;
+  }
+  table.rubric-table th {
+    background: #1e3a8a;
+    color: #ffffff;
+    padding: 6px 8px;
+    border: 1px solid #cbd5e1;
+    text-align: left;
+  }
+  table.rubric-table td {
+    padding: 5px 8px;
+    border: 1px solid #cbd5e1;
+    vertical-align: top;
+  }
+  table.rubric-table tr:nth-child(even) {
+    background: #f8fafc;
+  }
+</style>
+</head>
+<body>
+
+<div class="header-banner">
+  <h3>SOFTWARE QUALITY ASSURANCE &bull; WEEK 13 & 14 ACTIVITY</h3>
+  <h1>Diagnose, Defend, and Improve</h1>
+  <div class="badge">Topics: Software Quality Metrics and Measurement; SQA Audits and Compliance</div>
+</div>
+
+<table class="info-table">
+  <tr>
+    <td style="width: 50%;"><strong>Name:</strong> John Paulo Mendez</td>
+    <td style="width: 50%;"><strong>Section:</strong> BS Information Technology / 3rd Year</td>
+  </tr>
+  <tr>
+    <td><strong>Date:</strong> November 14, 2026</td>
+    <td><strong>Instructor:</strong> [Designated SQA Course Instructor]</td>
+  </tr>
+</table>
+
+<div class="scenario-box">
+  <h4>Case Scenario: Northstar Campus Portal</h4>
+  <p style="margin: 0 0 6px 0;">Northstar College is preparing to release a campus portal used for enrollment, grade viewing, and fee assessment. The QA team reports the following information:</p>
+  <ul>
+    <li><strong>Module A:</strong> 24 confirmed defects in 12 KLOC. | <strong>Module B:</strong> 18 confirmed defects in 6 KLOC.</li>
+    <li><strong>Defect Removal:</strong> Before release, the team detected and removed 90 defects. After release, users reported 10 additional defects.</li>
+    <li><strong>Test Coverage:</strong> 90 of 100 requirements were tested. However, the untested requirements include a payment-authorization workflow.</li>
+    <li><strong>Ticket Trends:</strong> The defect tracker shows fewer open tickets this month, but the number of reopened tickets and production incidents has increased.</li>
+    <li><strong>Governance & Audit:</strong> The release procedure requires an approved test report and an authorized change request before deployment. A sampled production release has a deployment record but no approval record.</li>
+    <li><strong>Reviews & Documentation:</strong> Developers say they always follow the review process, but repository history has not been audited. Test reports are frequently incomplete due to an outdated procedure and unconstrained template. Management wants to close the finding immediately after reminding developers to be more careful.</li>
+  </ul>
+</div>
+
+<!-- PART I -->
+<h2 class="part-title">Part I &mdash; Quantitative Analysis and Interpretation (25 Points)</h2>
+
+<div class="question-block">
+  <div class="question-title">1. Calculate the defect density of Module A and Module B. Show the formula, substitution, units, and final values. (8 points)</div>
+  <div class="response-box">
+    <strong>Formula:</strong> <code>Defect Density = (Total Confirmed Defects) ÷ (Module Size in KLOC)</code>
+    <div class="calc-box">
+      • Module A: 24 defects ÷ 12 KLOC = 2.0 defects/KLOC<br>
+      • Module B: 18 defects ÷ 6 KLOC = 3.0 defects/KLOC
+    </div>
+    <strong>Final Values with Units:</strong> Module A has a defect density of <strong>2.0 defects/KLOC</strong>. Module B has a defect density of <strong>3.0 defects/KLOC</strong>.
+  </div>
+</div>
+
+<div class="question-block">
+  <div class="question-title">2. Compare the two modules. Explain why raw defect counts alone would lead to a misleading conclusion. (5 points)</div>
+  <div class="response-box">
+    <strong>Comparison & Analysis:</strong> Comparing raw defect counts alone (24 in Module A vs. 18 in Module B) falsely suggests that Module A has poorer code quality simply because 24 &gt; 18. This conclusion is misleading because it ignores module size and code volume. Module A is twice the size of Module B (12 KLOC vs. 6 KLOC). Normalizing defects against size reveals that Module B has a defect density of <strong>3.0 defects/KLOC</strong>, which is <strong>50% higher</strong> than Module A's 2.0 defects/KLOC. This proves Module B is significantly more defect-prone per unit of code, indicating higher internal structural complexity, less thorough peer reviews, or weaker construction practices. Raw defect counts measure only gross defect volume, whereas defect density reflects actual defect concentration and relative code quality.
+  </div>
+</div>
+
+<div class="question-block">
+  <div class="question-title">3. Calculate Defect Removal Efficiency (DRE) using the scenario data and the formula DRE = E ÷ (E + D) &times; 100. Interpret what the result does and does not prove. (7 points)</div>
+  <div class="response-box">
+    <strong>Formula:</strong> <code>DRE = [E ÷ (E + D)] × 100</code><br>
+    <strong>Variables:</strong> E = 90 (pre-release defects detected and removed); D = 10 (post-release defects reported by users)<br>
+    <div class="calc-box">
+      DRE = [90 ÷ (90 + 10)] × 100 = (90 ÷ 100) × 100 = 90.0%
+    </div>
+    <strong>Interpretation:</strong>
+    <ul>
+      <li><strong>What it PROVES:</strong> It proves that the pre-release quality filtering, testing, and review activities successfully caught and eliminated <strong>90.0%</strong> of the total defects that became visible within the observed evaluation window (90 out of 100 total detected defects).</li>
+      <li><strong>What it DOES NOT PROVE:</strong>
+        (1) It <em>does not prove</em> the system is high quality or defect-free, as it only measures known, discovered defects; dormant defects may still reside in production.
+        (2) It <em>does not reflect defect severity or business impact</em>; if the 10 post-release defects involve catastrophic payment failures or grade corruption, the system suffers severe disruption despite an ostensibly high 90% score.
+        (3) It <em>does not prove comprehensive test coverage</em>, particularly since 10 requirements (including core payment authorization) were never tested.
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="question-block">
+  <div class="question-title">4. The team reports 90% requirements coverage. Explain why this percentage is not enough to justify release approval in this scenario. Identify the next evidence or test action you would prioritize. (5 points)</div>
+  <div class="response-box">
+    <strong>Explanation:</strong> Requirements coverage (90/100 = 90%) is an unweighted quantitative metric that treats all functional requirements as having equal operational, financial, and security risk. In this scenario, the unverified 10% contains the <strong>payment-authorization workflow</strong>—a mission-critical financial transaction path. Releasing an untested payment workflow exposes Northstar College to severe risks: financial discrepancies, unauthorized student charges, regulatory non-compliance, security vulnerabilities, and reputational damage. High aggregate coverage can never compensate for zero coverage of high-impact transaction features. Furthermore, the defect tracker's rising trend of reopened tickets and production incidents indicates active architectural instability.<br><br>
+    <strong>Next Prioritized Action & Evidence:</strong> Immediately halt release authorization and prioritize <strong>rigorous end-to-end functional, negative, and security integration testing of the payment-authorization workflow</strong> (gateway handshakes, token validation, edge-case timeouts, concurrent charges, and rollback integrity), substantiated by an approved Requirements Traceability Matrix (RTM) and signed test execution logs.
+  </div>
+</div>
+
+<!-- PART II -->
+<div class="page-break"></div>
+<h2 class="part-title">Part II &mdash; Audit Judgment and Evidence (25 Points)</h2>
+
+<div class="question-block">
+  <div class="question-title">5. Distinguish the testing, inspection, and audit activities that would be relevant to the missing payment-authorization tests, code review, and absent release approval. Give one scenario-specific example of each. (8 points)</div>
+  <div class="response-box">
+    <strong>Distinction of SQA Activities with Scenario-Specific Examples:</strong>
+    <ul>
+      <li><strong>Testing (Dynamic Quality Control):</strong> The dynamic execution of compiled software code with selected test inputs on a runtime environment to validate behavior against specifications and uncover runtime defects.<br>
+        <em>Scenario Example:</em> Executing dynamic test scripts against the payment-authorization workflow with valid, invalid, and expired payment tokens to verify that tuition charges process accurately, decline improper requests, and handle network timeouts without state loss.
+      </li>
+      <li><strong>Inspection (Static Peer Review):</strong> A formal, systematic engineering examination of static work products (source code, architecture models, requirements) conducted line-by-line by peers without code execution to detect defects, standards violations, and logic flaws early.<br>
+        <em>Scenario Example:</em> Conducting a formal code inspection of Module B's pull requests (reviewing its 6 KLOC) using a standardized inspection checklist to examine error-handling routines, database calls, and adherence to security coding rules, recorded in a formal review log.
+      </li>
+      <li><strong>Audit (Independent Quality Assurance & Compliance):</strong> An independent, evidence-based management evaluation conducted by authorized auditors to determine whether operational activities, processes, and records comply with documented institutional policies, procedures, and regulatory standards.<br>
+        <em>Scenario Example:</em> An SQA auditor evaluating production deployment records to verify whether the mandatory pre-release change authorization and signed QA test reports were archived prior to deploying the campus portal release.
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="question-block">
+  <div class="question-title">6. State the applicable audit criterion in the missing-approval case and identify the objective evidence needed to support a defensible finding. Do not rely on assumptions or interview statements alone. (7 points)</div>
+  <div class="response-box">
+    <strong>Applicable Audit Criterion:</strong> Northstar College Release Procedure / Policy Clause: <em>"The release procedure requires an approved test report and an authorized change request before deployment."</em><br><br>
+    <strong>Objective Evidence Needed for a Defensible Finding:</strong>
+    <ol style="margin: 4px 0; padding-left: 18px;">
+      <li>The <strong>Production Deployment Record / Server Log</strong> showing the exact build ID, deployment timestamp, and deployer identity for the sampled release.</li>
+      <li>The <strong>Change Management Repository / Ticket Log</strong> corresponding to that deployment, demonstrating the complete absence of an approved Change Request (CR) or authorization sign-off prior to the deployment timestamp.</li>
+      <li>The <strong>QA Documentation Archive</strong> confirming that no approved final test summary report exists for the deployed build.</li>
+    </ol>
+    <em>Audit Justification:</em> Cross-referencing the deployment timestamp against the missing pre-deployment approval records provides indisputable, verifiable documentary evidence without relying on developer interview statements.
+  </div>
+</div>
+
+<div class="question-block">
+  <div class="question-title">7. Explain whether the current evidence is sufficient to conclude that every production release is nonconforming. Describe how sampling and scope should affect the conclusion. (5 points)</div>
+  <div class="response-box">
+    <strong>Evaluation:</strong> No, the current evidence is <strong>not sufficient</strong> to conclude that every production release is nonconforming. The audit team examined only a <em>single sampled production release</em>.<br><br>
+    <strong>Role of Sampling and Scope:</strong> In SQA auditing (aligned with ISO 19011 standards), a single audit sample proves nonconformity only for that specific instance. Drawing a universal conclusion ("every release is nonconforming") based on one sample is an unsupported generalization that compromises audit credibility. To determine whether this gap represents an isolated human oversight or a systemic procedural breakdown, the auditor must expand the sample size by auditing a statistically valid sample (e.g., 10 to 20 recent production releases over the past 6 to 12 months). The audit finding and scope must remain strictly proportional to the verified sample population.
+  </div>
+</div>
+
+<div class="question-block">
+  <div class="question-title">8. Identify two additional sources of evidence that could corroborate or challenge the developers’ claim that reviews are always performed. Explain what each source could establish. (5 points)</div>
+  <div class="response-box">
+    <strong>Two Corroborating Sources of Evidence:</strong>
+    <ul>
+      <li><strong>1. Git Version Control / Pull Request (PR) History & Branch Protection Logs (GitHub / GitLab):</strong><br>
+        <em>What it Establishes:</em> Provides immutable, timestamped digital records of code merges, peer review approvals, inline discussion comments, and author vs. reviewer identities. This directly establishes whether peer reviews actually took place prior to merging code, whether reviews were substantive or merely rubber-stamped, or whether code was committed directly to main/production branches bypassing review requirements.
+      </li>
+      <li><strong>2. Formal Peer Review Meeting Records, Checklists, and Inspection Defect Logs:</strong><br>
+        <em>What it Establishes:</em> Demonstrates whether formal inspection meetings were scheduled, who attended, time spent conducting reviews, what defects were identified, and whether identified defects were tracked to verified resolution before release.
+      </li>
+    </ul>
+  </div>
+</div>
+
+<!-- PART III -->
+<div class="page-break"></div>
+<h2 class="part-title">Part III &mdash; Root Cause and Corrective Action Plan (25 Points)</h2>
+
+<div class="question-block">
+  <div class="question-title">9. Write a concise audit finding for the release with missing approval. Include the requirement, verified evidence, and the gap between them. (6 points)</div>
+  <div class="response-box">
+    <strong>Statement of Audit Finding (Nonconformity):</strong>
+    <ul>
+      <li><strong>Requirement (Audit Criterion):</strong> According to the Northstar College Release Procedure, every production deployment requires an approved test report and an authorized change request prior to release execution.</li>
+      <li><strong>Verified Evidence (Condition):</strong> An audit of production deployment records for Release [Sampled ID] confirmed deployment to the production campus portal environment on [Date/Timestamp]. However, examination of the change management system and QA repository revealed that no authorized change request exists, and no approved test summary report was signed off or archived for this release.</li>
+      <li><strong>Gap (Nonconformity):</strong> The production deployment was executed without the required authorized change request and approved test report, violating release governance procedures and circumventing deployment quality gates.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="question-block">
+  <div class="question-title">10. Use a structured root-cause method (such as the 5 Whys or a cause-and-effect analysis) to investigate why test reports are incomplete. Show at least three connected reasoning steps and distinguish a symptom from a likely root cause. (7 points)</div>
+  <div class="response-box">
+    <strong>Structured Root-Cause Analysis (5 Whys Method):</strong><br>
+    <em>Observed Symptom:</em> Earlier test reports are frequently incomplete.
+    <ol style="margin: 4px 0; padding-left: 18px;">
+      <li><strong>Why are earlier test reports frequently incomplete?</strong><br>
+        &rarr; Because QA testers routinely omit critical testing metrics, coverage summaries, and sign-off fields.</li>
+      <li><strong>Why do testers omit these critical sections?</strong><br>
+        &rarr; Because the test report template contains no mandatory fields, input validation, or clear guidance requiring them.</li>
+      <li><strong>Why does the template lack mandatory fields and guidance?</strong><br>
+        &rarr; Because the test documentation procedure has not been reviewed, standardized, or updated alongside portal development.</li>
+      <li><strong>Why has the documentation procedure not been updated and enforced?</strong><br>
+        &rarr; Because there is no assigned SQA process ownership or formal document governance mechanism to audit and maintain SQA procedural standards.</li>
+    </ol>
+    <strong>Distinction:</strong> The <em>symptom</em> is testers submitting incomplete documentation with missing data (an observable operational behavior). The <em>root cause</em> is the absence of an updated, standardized documentation procedure and an unconstrained, non-enforcing template that permits incomplete deliverables to pass without gatekeeping.
+  </div>
+</div>
+
+<div class="question-block">
+  <div class="question-title">11. Propose a corrective action plan that addresses the root cause rather than only reminding staff to be careful. Include the action, responsible role, evidence of implementation, and how effectiveness will be checked. (8 points)</div>
+  <div class="response-box">
+    <strong>Corrective Action Plan:</strong>
+    <ul>
+      <li><strong>Action:</strong>
+        (a) Revise and re-issue the Test Documentation and Release Governance Procedure to mandate standardized reporting sections (test coverage, defect metrics, sign-off blocks).
+        (b) Replace the unstructured test report template with an electronic template in the QA management tool (e.g., Jira/TestRail) that enforces mandatory fields and blocks submission if required data is absent.
+        (c) Implement automated CI/CD deployment pipeline hard-gates that verify digital attachments of an approved test report and authorized change request before permitting deployment scripts to execute.
+      </li>
+      <li><strong>Responsible Role:</strong> SQA Lead / QA Manager (procedural & template updates) and DevOps / Release Engineering Lead (automated CI/CD deployment gate configuration).</li>
+      <li><strong>Evidence of Implementation:</strong>
+        (1) Published, approved, and version-controlled SQA Test Documentation Procedure v2.0;
+        (2) Deployed electronic test report template with enforced mandatory fields;
+        (3) Staff training attendance and acknowledgment records;
+        (4) CI/CD pipeline configuration scripts enforcing approval verification gates before release promotion.
+      </li>
+      <li><strong>Checking Effectiveness:</strong> SQA Lead and Internal Audit will conduct bi-weekly audits of 100% of generated test reports and production deployments over the next quarter (3 months) to verify zero incomplete test reports and zero unauthorized deployments.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="question-block">
+  <div class="question-title">12. State what evidence must be reviewed during a follow-up audit before the significant finding can be closed. (4 points)</div>
+  <div class="response-box">
+    <strong>Required Evidence for Audit Finding Closure:</strong><br>
+    Before the significant nonconformity finding can be closed, the follow-up audit must examine:
+    <ol style="margin: 4px 0; padding-left: 18px;">
+      <li>A sample of recent production deployment records (e.g., the last 5 consecutive deployments executed post-corrective action), verifying that each deployment has a corresponding authorized change request with a verified prior timestamp.</li>
+      <li>The corresponding approved, complete test reports for those releases, verifying that all mandatory fields, coverage metrics, and sign-offs are completed.</li>
+      <li>Active CI/CD pipeline deployment logs demonstrating that automated release gates successfully block deployments when approvals are absent.</li>
+    </ol>
+    <em>Audit Note:</em> Management's proposal to close the finding after verbally reminding developers to be more careful must be explicitly rejected; verbal reminders do not constitute verified corrective action or objective evidence.
+  </div>
+</div>
+
+<!-- PART IV -->
+<div class="page-break"></div>
+<h2 class="part-title">Part IV &mdash; Individual Reasoning Reflection (15 Points)</h2>
+
+<div class="question-block">
+  <div class="question-title">13. Without using a generic definition, explain which decision in this case was the most difficult for you and why. Describe how you decided what evidence mattered, what uncertainty remains, and what you would do first if you were responsible for the release. Refer to at least two specific details from the case. (10 points)</div>
+  <div class="response-box" style="font-style: italic; background: #ffffff; border-left-color: #1e3a8a;">
+    &ldquo;The most difficult decision in this case was recommending an immediate halt to the release and rejecting management's proposal to close the audit finding with a simple verbal reminder. On the surface, the team presented positive aggregate metrics&mdash;a 90% requirements coverage rate and a 90% Defect Removal Efficiency (DRE). In high-pressure collegiate deployment schedules, standing against release momentum is challenging. However, disciplined SQA analysis requires separating surface metrics from underlying risks. I determined that the raw metrics were profoundly misleading: the untested 10% contained the payment-authorization workflow, a critical financial and legal transaction path where runtime failures would result in severe fiscal discrepancy and student distress. Furthermore, the defect tracker's rising trend of reopened tickets and production incidents directly contradicted the illusion of quality provided by 'fewer open tickets.' Substantial uncertainty remains regarding the true defect density of Module B (3.0 defects/KLOC) and whether peer reviews actually occurred, given that repository commit history has not yet been audited. If I were responsible for the release, my first action would be to issue an immediate deployment stop, configure a pipeline deployment block, and execute an exhaustive, multi-scenario test suite on the payment-authorization workflow while launching an immediate Git commit review audit.&rdquo;
+  </div>
+</div>
+
+<div class="question-block">
+  <div class="question-title">14. Write three short oral-defense questions an instructor could ask about your own answers, then write the key point you would explain for each. The questions must refer to your calculations, evidence judgment, or corrective action plan. (5 points)</div>
+  <div class="response-box">
+    <p style="margin: 0 0 8px 0;"><strong>Question 1:</strong> Why do you conclude Module B is higher risk than Module A when Module A has 24 defects compared to Module B's 18?<br>
+    <strong>Key point I would explain:</strong> I would explain that raw defect count ignores scale. Normalizing defects against module size reveals that Module B has a defect density of 3.0 defects/KLOC, which is 50% higher than Module A's 2.0 defects/KLOC. This proves Module B has a higher defect injection rate per volume of code, indicating higher internal complexity or weaker verification.</p>
+
+    <p style="margin: 0 0 8px 0;"><strong>Question 2:</strong> Why is 90% requirements coverage insufficient to justify release authorization in this case?<br>
+    <strong>Key point I would explain:</strong> I would explain that requirements coverage is an unweighted metric. The unverified 10% contains the payment-authorization workflow&mdash;a mission-critical financial and compliance path. High aggregate coverage on informational pages cannot compensate for zero verification on a financial transaction feature that exposes the institution to monetary and legal liabilities.</p>
+
+    <p style="margin: 0 0 4px 0;"><strong>Question 3:</strong> Why did you reject management's proposal to close the audit finding after verbally reminding developers to be careful?<br>
+    <strong>Key point I would explain:</strong> I would explain that verbal reminders address human symptoms rather than systemic root causes. SQA auditing standards require verifiable corrective actions&mdash;specifically updating the obsolete procedure, enforcing mandatory report templates, and automating release pipeline gates to prevent unauthorized deployments.</p>
+  </div>
+</div>
+
+<div class="checklist-box">
+  <h4 style="margin: 0 0 6px 0; color: #166534;">Submission Checklist (Verified Complete)</h4>
+  <ul>
+    <li>&#9745; I showed the calculations and included units.</li>
+    <li>&#9745; I separated verified evidence from assumptions.</li>
+    <li>&#9745; I explained why the metrics do not automatically prove overall quality.</li>
+    <li>&#9745; I connected corrective action to a plausible root cause.</li>
+    <li>&#9745; I wrote the reflection in my own words and can explain my answers orally.</li>
+  </ul>
+</div>
+
+<table class="rubric-table">
+  <tr>
+    <th style="width: 25%;">Criterion</th>
+    <th style="width: 45%;">Excellent</th>
+    <th style="width: 20%;">Satisfactory / Developing</th>
+    <th style="width: 10%; text-align: center;">Points</th>
+  </tr>
+  <tr>
+    <td><strong>Part I: Quantitative analysis and interpretation</strong></td>
+    <td>Calculations correct, units shown, comparisons contextualized, and limitations of metrics explained.</td>
+    <td>Minor computational or interpretive errors; reasoning is partly supported.</td>
+    <td style="text-align: center; font-weight: 700;">25</td>
+  </tr>
+  <tr>
+    <td><strong>Part II: Audit judgment and evidence</strong></td>
+    <td>Correctly distinguishes testing/inspection/audit; identifies criteria and traceable evidence; conclusions respect scope and sampling.</td>
+    <td>Some distinctions or evidence links are incomplete; conclusions may be overgeneralized.</td>
+    <td style="text-align: center; font-weight: 700;">25</td>
+  </tr>
+  <tr>
+    <td><strong>Part III: Root cause and corrective action</strong></td>
+    <td>Reasoning traces beyond symptoms; actions are assigned, verifiable, and tied to the cause; follow-up checks effectiveness.</td>
+    <td>Root cause is plausible but shallow, or actions/verification are vague.</td>
+    <td style="text-align: center; font-weight: 700;">25</td>
+  </tr>
+  <tr>
+    <td><strong>Part IV: Individual reasoning reflection</strong></td>
+    <td>Specific to the case, candid about uncertainty, shows independent reasoning, and can be defended orally.</td>
+    <td>Reflection is general or weakly connected to case details; oral explanation needs prompting.</td>
+    <td style="text-align: center; font-weight: 700;">15</td>
+  </tr>
+  <tr>
+    <td><strong>Clarity, completeness, and academic integrity</strong></td>
+    <td>Organized, readable, complete, in the student's own words, with sources acknowledged where used.</td>
+    <td>Some sections are incomplete or unclear, or source attribution is missing.</td>
+    <td style="text-align: center; font-weight: 700;">10</td>
+  </tr>
+</table>
+
+</body>
+</html>

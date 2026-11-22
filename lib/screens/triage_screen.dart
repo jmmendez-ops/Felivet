@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -396,6 +397,7 @@ class _TriageScreenState extends State<TriageScreen> {
   }
 
   Future<void> _loadCatGatekeeper() async {
+    if (kIsWeb) return;
     try {
       await _catGatekeeper.load();
     } catch (error, stackTrace) {
@@ -777,6 +779,7 @@ class _TriageScreenState extends State<TriageScreen> {
   }
 
   Future<void> _loadModel() async {
+    if (kIsWeb) return;
     try {
       _vision ??= FlutterVision();
       await _vision!.loadYoloModel(
@@ -1056,6 +1059,14 @@ class _TriageScreenState extends State<TriageScreen> {
 
   Future<void> _runInference() async {
     if (_isScanning) return;
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This feature is available on the mobile app'),
+        ),
+      );
+      return;
+    }
     if (_image == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
