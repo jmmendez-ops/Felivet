@@ -1,11 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-<<<<<<< HEAD
   "buildCommand": "git clone https://github.com/flutter/flutter.git -b 3.47.9 --depth 1 && export PATH=\"$PATH:`pwd`/flutter/bin\" && flutter config --enable-web && flutter pub get && flutter build web",
-=======
-  "buildCommand": "git clone https://github.com/flutter/flutter.git -b stable --depth 1 && export PATH=\"$PATH:`pwd`/flutter/bin\" && flutter config --enable-web && flutter pub get && flutter build web",
->>>>>>> 2bb113b6437f22f8c219e1627b6ea4d648fee7fa
   "outputDirectory": "build/web",
   "rewrites": [
     {
