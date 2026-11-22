@@ -488,6 +488,17 @@ class _TriageScreenState extends State<TriageScreen> {
                           Expanded(
                             child: OutlinedButton.icon(
                               onPressed: () async {
+                                if (kIsWeb) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Adding a photo is available on the mobile app',
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
+
                                 final pickedFile = await picker.pickImage(
                                   source: ImageSource.gallery,
                                 );
@@ -804,6 +815,17 @@ class _TriageScreenState extends State<TriageScreen> {
   }
 
   Future<void> _getImage(ImageSource source) async {
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Photo upload and analysis are available on the mobile app',
+          ),
+        ),
+      );
+      return;
+    }
+
     try {
       if (source == ImageSource.camera) {
         final shouldContinue = await _showCameraTips();
