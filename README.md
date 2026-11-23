@@ -7,7 +7,7 @@
 FeliVet Insight is a Flutter mobile 
 app that helps cat owners get a quick, AI-assisted first look at common feline skin conditions using their phone's camera. An on-device YOLOv8 model scans a photo for signs of Scabies, Ringworm, and Flea Allergy, and a deterministic expert system combines visual evidence strength, disease-specific clinical risk, and reported symptoms into a clear **Stable / Moderate / High** urgency result with plain-language reasoning and a recommendation.
 
-> ⚠️ **This is a triage aid, not a diagnosis.** Always consult a licensed veterinarian.
+>  **This is a triage aid, not a diagnosis.** Always consult a licensed veterinarian.
 
 
 ## Installation (Users)
@@ -95,14 +95,14 @@ This local fork is intentionally tracked in the repo so the patch is not lost wh
 
 ## Features
 
-- 📷 Camera or gallery photo capture
-- 🧠 On-device YOLOv8 detection (no images leave the device)
-- 🩺 Expert-system triage — confidence, evidence strength, and clinical risk evaluated independently, not conflated
-- ✅ Symptom checklist (vomiting, lethargy, loss of appetite) that factors into urgency
-- 🔍 Tap-to-enlarge photo on the result screen
-- 🕘 Permanent analysis history — saved on-device, with per-entry and clear-all delete
-- 🌗 Dark mode toggle
-- 📱 Clean Material 3 UI
+-  Camera or gallery photo capture
+-  On-device YOLOv8 detection (no images leave the device)
+-  Expert-system triage — confidence, evidence strength, and clinical risk evaluated independently, not conflated
+- Symptom checklist (vomiting, lethargy, loss of appetite) that factors into urgency
+-  Tap-to-enlarge photo on the result screen
+-  Permanent analysis history — saved on-device, with per-entry and clear-all delete
+-  Dark mode toggle
+-  Clean Material 3 UI
 
 ## Usage
 
