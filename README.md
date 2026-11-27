@@ -14,7 +14,7 @@ app that helps cat owners get a quick, AI-assisted first look at common feline s
 
 [![Download APK](https://img.shields.io/badge/Download-FelivetInsight.apk-green?style=for-the-badge&logo=android)](https://drive.google.com/file/d/150_MN2LM-3U2U-kvvrjaPV9O4TnDYOIm/view?usp=sharing)
 
-##Or
+   Or
 
 1. Install [VS Code](https://code.visualstudio.com/) and the [Flutter](https://docs.flutter.dev/get-started/install) + [Dart](https://docs.flutter.dev/get-started/install) extensions.
 2. Download or clone this repository:
