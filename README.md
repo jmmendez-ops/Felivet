@@ -1,5 +1,5 @@
 <a href="https://github.com/jpm-mendez/Felivet">
-  <img src="assets/felivet.svg" width="100%" alt="FeliVet Insight — on-device feline skin screening with YOLOv8 and clinical triage." />
+  <img src="assets/felinew.svg" width="100%" alt="FeliVet Insight — on-device feline skin screening with YOLOv8 and clinical triage." />
 </a>
 
 <div align="center">
