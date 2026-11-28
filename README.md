@@ -1,13 +1,20 @@
-# 🐾 FeliVet Insight 
+<a href="https://github.com/jpm-mendez/Felivet">
+  <img src="assets/felivet-banner.svg" width="100%" alt="FeliVet Insight — on-device feline skin screening with YOLOv8 and clinical triage." />
+</a>
 
-**A fast, on-device AI first-read on common feline skin conditions from a photo.**
+<div align="center">
+
+**Fast, on-device AI first-read on common feline skin conditions from a photo**
+
+[Overview](#overview) · [Installation](#installation-users) · [Features](#features) · [Usage](#usage) · [Disclaimer](#disclaimer)
+
+</div>
 
 ## Overview
 
-FeliVet Insight is a Flutter mobile 
-app that helps cat owners get a quick, AI-assisted first look at common feline skin conditions using their phone's camera. An on-device YOLOv8 model scans a photo for signs of Scabies, Ringworm, and Flea Allergy, and a deterministic expert system combines visual evidence strength, disease-specific clinical risk, and reported symptoms into a clear **Stable / Moderate / High** urgency result with plain-language reasoning and a recommendation.
+FeliVet Insight is a Flutter mobile app that helps cat owners get a quick, AI-assisted first look at common feline skin conditions using their phone's camera. An on-device YOLOv8 model scans a photo for signs of Scabies, Ringworm, and Flea Allergy, while a deterministic expert system combines visual evidence strength, disease-specific clinical risk, and reported symptoms into a clear **Stable / Moderate / High** urgency result with plain-language reasoning and a recommendation.
 
-> ⚠️ **This is a triage aid, not a diagnosis.** Always consult a licensed veterinarian.
+> **This is a triage aid, not a diagnosis.** Always consult a licensed veterinarian.
 
 
 ## Installation (Users)
@@ -17,7 +24,7 @@ There's currently no app store listing or standalone APK — the app runs by bui
 1. Install [VS Code](https://code.visualstudio.com/) and the [Flutter](https://docs.flutter.dev/get-started/install) + [Dart](https://docs.flutter.dev/get-started/install) extensions.
 2. Download or clone this repository:
    ```bash
-   git clone https://github.com/jmmendez-ops/feline-detector-public.git
+   git clone https://github.com/jpm-mendez/Felivet.git
    ```
 3. Open the project folder in VS Code.
 4. Connect your Android or iOS phone via USB and enable **USB debugging** (Android: Developer Options → USB Debugging).
@@ -40,7 +47,7 @@ There's currently no app store listing or standalone APK — the app runs by bui
 
 1. Clone the repo:
    ```bash
-   git clone https://github.com/jmmendez-ops/feline-detector-public.git
+   git clone https://github.com/jpm-mendez/Felivet.git
    cd feline-detector-public
    ```
 2. Install dependencies:
